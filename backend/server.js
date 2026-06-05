@@ -3,6 +3,11 @@ const cors = require("cors");
 require("dotenv").config();
 
 const pool = require("./db");
+const eventsRoutes = require("./routes/events");
+const usersRoutes = require("./routes/users");
+const tasksRoutes = require("./routes/tasks");
+const budgetsRoutes = require("./routes/budgets");
+const expensesRoutes = require("./routes/expenses");
 
 const app = express();
 
@@ -29,18 +34,11 @@ app.get("/api/test-db", async function (req, res) {
   }
 });
 
-// First real API route: get all events
-app.get("/api/events", async function (req, res) {
-  try {
-    const result = await pool.query("SELECT * FROM events ORDER BY event_date ASC");
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Error fetching events:", error);
-    res.status(500).json({
-      error: "Failed to fetch events",
-    });
-  }
-});
+app.use("/api/events", eventsRoutes);
+app.use("/api/users", usersRoutes);
+app.use("/api/tasks", tasksRoutes);
+app.use("/api/budgets", budgetsRoutes);
+app.use("/api/expenses", expensesRoutes);
 
 const PORT = process.env.PORT || 5050;
 

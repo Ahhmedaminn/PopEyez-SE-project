@@ -99,3 +99,23 @@ INSERT INTO feedback (id, event_id, guest_id, overall_rating, food_rating, venue
 (1, 1, 1, 5, 4, 5, 5, 'Positive', 'Beautiful venue and smooth check-in. Food was very good.', '2026-06-21 11:00:00', '2026-06-21 11:00:00'),
 (2, 1, 2, 4, 5, 4, 4, 'Positive', 'Great atmosphere and helpful staff. More signage near the entrance would help.', '2026-06-21 11:30:00', '2026-06-21 11:30:00'),
 (3, 1, 3, 3, NULL, 4, 3, 'Neutral', 'Could not attend the full event but the invitation flow was clear.', '2026-06-21 12:00:00', '2026-06-21 12:00:00');
+
+SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1));
+SELECT setval(pg_get_serial_sequence('venues', 'id'), COALESCE((SELECT MAX(id) FROM venues), 1));
+SELECT setval(pg_get_serial_sequence('vendors', 'id'), COALESCE((SELECT MAX(id) FROM vendors), 1));
+SELECT setval(pg_get_serial_sequence('events', 'id'), COALESCE((SELECT MAX(id) FROM events), 1));
+SELECT setval(pg_get_serial_sequence('venue_availability', 'id'), COALESCE((SELECT MAX(id) FROM venue_availability), 1));
+SELECT setval(pg_get_serial_sequence('booking_requests', 'id'), COALESCE((SELECT MAX(id) FROM booking_requests), 1));
+SELECT setval(pg_get_serial_sequence('layouts', 'id'), COALESCE((SELECT MAX(id) FROM layouts), 1));
+SELECT setval(pg_get_serial_sequence('tasks', 'id'), COALESCE((SELECT MAX(id) FROM tasks), 1));
+SELECT setval(pg_get_serial_sequence('budgets', 'id'), COALESCE((SELECT MAX(id) FROM budgets), 1));
+SELECT setval(pg_get_serial_sequence('expenses', 'id'), COALESCE((SELECT MAX(id) FROM expenses), 1));
+SELECT setval(pg_get_serial_sequence('sourcing_requests', 'id'), COALESCE((SELECT MAX(id) FROM sourcing_requests), 1));
+SELECT setval(pg_get_serial_sequence('deliveries', 'id'), COALESCE((SELECT MAX(id) FROM deliveries), 1));
+SELECT setval(pg_get_serial_sequence('invoices', 'id'), COALESCE((SELECT MAX(id) FROM invoices), 1));
+SELECT setval(pg_get_serial_sequence('guests', 'id'), COALESCE((SELECT MAX(id) FROM guests), 1));
+SELECT setval(pg_get_serial_sequence('invitations', 'id'), COALESCE((SELECT MAX(id) FROM invitations), 1));
+SELECT setval(pg_get_serial_sequence('rsvps', 'id'), COALESCE((SELECT MAX(id) FROM rsvps), 1));
+SELECT setval(pg_get_serial_sequence('messages', 'id'), COALESCE((SELECT MAX(id) FROM messages), 1));
+SELECT setval(pg_get_serial_sequence('checkins', 'id'), COALESCE((SELECT MAX(id) FROM checkins), 1));
+SELECT setval(pg_get_serial_sequence('feedback', 'id'), COALESCE((SELECT MAX(id) FROM feedback), 1));

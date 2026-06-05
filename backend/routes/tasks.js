@@ -8,17 +8,35 @@ function isMissing(value) {
   return value === undefined || value === null || value === "";
 }
 
-function normalizeTaskStatus(status) {
-  if (status === "Overdue") {
-    return "overdue";
+router.get("/", async function (req, res) {
+  const { status, event_id, assigned_to } = req.query;
+  const filters = [];
+  const values = [];
+
+  if (status) {
+    if (!allowedTaskStatuses.includes(status)) {
+      return res.status(400).json({
+        error: "Invalid task status",
+      });
+    }
+
+    values.push(status);
+    filters.push(`status = $${values.length}`);
   }
 
-  return status;
-}
+  if (event_id) {
+    values.push(event_id);
+    filters.push(`event_id = $${values.length}`);
+  }
 
-router.get("/", async function (req, res) {
+  if (assigned_to) {
+    values.push(assigned_to);
+    filters.push(`assigned_to = $${values.length}`);
+  }
+
   try {
-    const result = await pool.query("SELECT * FROM tasks ORDER BY due_date ASC");
+    const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+    const result = await pool.query(`SELECT * FROM tasks ${whereClause} ORDER BY due_date ASC`, values);
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching tasks:", error);
@@ -77,7 +95,7 @@ router.post("/", async function (req, res) {
         description || null,
         category || null,
         due_date || null,
-        normalizeTaskStatus(status) || null,
+        status || null,
       ]
     );
 
@@ -121,7 +139,7 @@ router.put("/:id", async function (req, res) {
         description || null,
         category || null,
         due_date || null,
-        normalizeTaskStatus(status) || null,
+        status || null,
         req.params.id,
       ]
     );
@@ -152,7 +170,7 @@ router.patch("/:id/status", async function (req, res) {
 
   try {
     const result = await pool.query("UPDATE tasks SET status = $1 WHERE id = $2 RETURNING *", [
-      normalizeTaskStatus(status),
+      status,
       req.params.id,
     ]);
 

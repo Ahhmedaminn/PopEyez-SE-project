@@ -128,7 +128,7 @@ CREATE TABLE tasks (
     description TEXT,
     category VARCHAR(80),
     due_date DATE,
-    status VARCHAR(30) NOT NULL DEFAULT 'Pending' CHECK (status IN ('Not Assigned', 'Pending', 'In Progress', 'Done', 'overdue')),
+    status VARCHAR(30) NOT NULL DEFAULT 'Pending' CHECK (status IN ('Not Assigned', 'Pending', 'In Progress', 'Done', 'Overdue')),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

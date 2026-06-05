@@ -9,8 +9,34 @@ function isMissing(value) {
 }
 
 router.get("/", async function (req, res) {
+  const { date, status, organizer_id } = req.query;
+  const filters = [];
+  const values = [];
+
+  if (status) {
+    if (!allowedEventStatuses.includes(status)) {
+      return res.status(400).json({
+        error: "Invalid event status",
+      });
+    }
+
+    values.push(status);
+    filters.push(`status = $${values.length}`);
+  }
+
+  if (date) {
+    values.push(date);
+    filters.push(`event_date = $${values.length}`);
+  }
+
+  if (organizer_id) {
+    values.push(organizer_id);
+    filters.push(`organizer_id = $${values.length}`);
+  }
+
   try {
-    const result = await pool.query("SELECT * FROM events ORDER BY event_date ASC");
+    const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
+    const result = await pool.query(`SELECT * FROM events ${whereClause} ORDER BY event_date ASC`, values);
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching events:", error);

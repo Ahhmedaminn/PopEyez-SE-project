@@ -8,6 +8,22 @@ const usersRoutes = require("./routes/users");
 const tasksRoutes = require("./routes/tasks");
 const budgetsRoutes = require("./routes/budgets");
 const expensesRoutes = require("./routes/expenses");
+const reportsRoutes = require("./routes/reports");
+const dashboardRoutes = require("./routes/dashboard");
+const feedbackRoutes = require("./routes/feedback");
+const venuesRoutes = require("./routes/venues");
+const venueAvailabilityRoutes = require("./routes/venueAvailability");
+const bookingRequestsRoutes = require("./routes/bookingRequests");
+const layoutsRoutes = require("./routes/layouts");
+const vendorsRoutes = require("./routes/vendors");
+const sourcingRequestsRoutes = require("./routes/sourcingRequests");
+const deliveriesRoutes = require("./routes/deliveries");
+const invoicesRoutes = require("./routes/invoices");
+const guestsRoutes = require("./routes/guests");
+const invitationsRoutes = require("./routes/invitations");
+const rsvpsRoutes = require("./routes/rsvps");
+const messagesRoutes = require("./routes/messages");
+const checkinsRoutes = require("./routes/checkins");
 
 const app = express();
 
@@ -39,6 +55,22 @@ app.use("/api/users", usersRoutes);
 app.use("/api/tasks", tasksRoutes);
 app.use("/api/budgets", budgetsRoutes);
 app.use("/api/expenses", expensesRoutes);
+app.use("/api/reports", reportsRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/feedback", feedbackRoutes);
+app.use("/api/venues", venuesRoutes);
+app.use("/api/venue-availability", venueAvailabilityRoutes);
+app.use("/api/booking-requests", bookingRequestsRoutes);
+app.use("/api/layouts", layoutsRoutes);
+app.use("/api/vendors", vendorsRoutes);
+app.use("/api/sourcing-requests", sourcingRequestsRoutes);
+app.use("/api/deliveries", deliveriesRoutes);
+app.use("/api/invoices", invoicesRoutes);
+app.use("/api/guests", guestsRoutes);
+app.use("/api/invitations", invitationsRoutes);
+app.use("/api/rsvps", rsvpsRoutes);
+app.use("/api/messages", messagesRoutes);
+app.use("/api/checkins", checkinsRoutes);
 
 const PORT = process.env.PORT || 5050;
 

@@ -1,121 +1,153 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
+import BudgetExpenses from './pages/BudgetExpenses'
+import EventsTasks from './pages/EventsTasks'
+import GuestManagement from './pages/GuestManagement'
+import Login from './pages/Login'
+import OperationsReports from './pages/OperationsReports'
+import OrganizerDashboard from './pages/OrganizerDashboard'
+import Register from './pages/Register'
+import UserManagement from './pages/UserManagement'
+import VendorCoordination from './pages/VendorCoordination'
+import VenuesBooking from './pages/VenuesBooking'
+
+const storedUserKey = 'popeyezCurrentUser'
+
+const organizerPages = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'users', label: 'Users' },
+  { id: 'events', label: 'Events & Tasks' },
+  { id: 'finance', label: 'Budget' },
+  { id: 'venues', label: 'Venues' },
+  { id: 'vendors', label: 'Vendors' },
+  { id: 'guests', label: 'Guests' },
+  { id: 'operations', label: 'Operations' },
+]
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [currentUser, setCurrentUser] = useState(() => {
+    const savedUser = localStorage.getItem(storedUserKey)
+    return savedUser ? JSON.parse(savedUser) : null
+  })
+  const [activePage, setActivePage] = useState(currentUser?.role === 'organizer' ? 'dashboard' : 'login')
+
+  function handleLogin(user) {
+    setCurrentUser(user)
+    localStorage.setItem(storedUserKey, JSON.stringify(user))
+    setActivePage('dashboard')
+  }
+
+  function handleLogout() {
+    setCurrentUser(null)
+    localStorage.removeItem(storedUserKey)
+    setActivePage('login')
+  }
+
+  function renderPage() {
+    if (activePage === 'login') {
+      return <Login onLogin={handleLogin} onShowRegister={() => setActivePage('register')} />
+    }
+
+    if (activePage === 'register') {
+      return <Register onRegister={handleLogin} onShowLogin={() => setActivePage('login')} />
+    }
+
+    if (!currentUser) {
+      return <Login onLogin={handleLogin} onShowRegister={() => setActivePage('register')} />
+    }
+
+    if (currentUser.role !== 'organizer') {
+      return (
+        <section className="page-panel notice-panel">
+          <p className="eyebrow">Role unavailable</p>
+          <h1>Organizer Workspace Only</h1>
+          <p>This frontend workspace is currently implemented for the Event Organizer demo only.</p>
+          <button type="button" onClick={handleLogout}>Return to Login</button>
+        </section>
+      )
+    }
+
+    if (activePage === 'users') {
+      return <UserManagement />
+    }
+
+    if (activePage === 'events') {
+      return <EventsTasks currentUser={currentUser} />
+    }
+
+    if (activePage === 'finance') {
+      return <BudgetExpenses />
+    }
+
+    if (activePage === 'venues') {
+      return <VenuesBooking currentUser={currentUser} />
+    }
+
+    if (activePage === 'vendors') {
+      return <VendorCoordination currentUser={currentUser} />
+    }
+
+    if (activePage === 'guests') {
+      return <GuestManagement currentUser={currentUser} />
+    }
+
+    if (activePage === 'operations') {
+      return <OperationsReports currentUser={currentUser} />
+    }
+
+    return <OrganizerDashboard />
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
+    <div className="app-shell">
+      <header className="topbar">
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
+          <p className="brand-kicker">PopEyez</p>
+          <strong>Event Management Platform</strong>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
 
-      <div className="ticks"></div>
+        <nav>
+          {currentUser?.role === 'organizer' ? (
+            <>
+              {organizerPages.map((page) => (
+                <button
+                  key={page.id}
+                  type="button"
+                  className={activePage === page.id ? 'active' : ''}
+                  onClick={() => setActivePage(page.id)}
+                >
+                  {page.label}
+                </button>
+              ))}
+              <button type="button" onClick={handleLogout}>
+                Logout
+              </button>
+            </>
+          ) : currentUser ? (
+            <button type="button" onClick={handleLogout}>
+              Logout
+            </button>
+          ) : (
+            <>
+              <button type="button" className={activePage === 'login' ? 'active' : ''} onClick={() => setActivePage('login')}>
+                Login
+              </button>
+              <button type="button" className={activePage === 'register' ? 'active' : ''} onClick={() => setActivePage('register')}>
+                Register
+              </button>
+            </>
+          )}
+        </nav>
+      </header>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+      {currentUser && (
+        <div className="session-bar">
+          Logged in as <strong>{currentUser.full_name}</strong> · {currentUser.role}
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <main>{renderPage()}</main>
+    </div>
   )
 }
 

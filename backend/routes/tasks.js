@@ -46,6 +46,53 @@ router.get("/", async function (req, res) {
   }
 });
 
+router.get("/staff/:staffId", async function (req, res) {
+  const { status } = req.query;
+
+  if (status && !allowedTaskStatuses.includes(status)) {
+    return res.status(400).json({
+      error: "Invalid task status",
+    });
+  }
+
+  try {
+    const values = [req.params.staffId];
+    const filters = ["tasks.assigned_to = $1"];
+
+    if (status) {
+      values.push(status);
+      filters.push(`tasks.status = $${values.length}`);
+    }
+
+    const result = await pool.query(
+      `SELECT
+        tasks.*,
+        events.name AS event_name,
+        events.event_type,
+        events.description AS event_description,
+        events.event_date,
+        events.start_time,
+        events.end_time,
+        events.expected_attendees,
+        events.dress_code,
+        events.agenda,
+        events.status AS event_status
+      FROM tasks
+      JOIN events ON events.id = tasks.event_id
+      WHERE ${filters.join(" AND ")}
+      ORDER BY tasks.due_date ASC, events.event_date ASC`,
+      values
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching staff tasks:", error);
+    res.status(500).json({
+      error: "Failed to fetch staff tasks",
+    });
+  }
+});
+
 router.get("/:id", async function (req, res) {
   try {
     const result = await pool.query("SELECT * FROM tasks WHERE id = $1", [req.params.id]);

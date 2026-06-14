@@ -7,6 +7,12 @@ import Login from './pages/Login'
 import OperationsReports from './pages/OperationsReports'
 import OrganizerDashboard from './pages/OrganizerDashboard'
 import Register from './pages/Register'
+import StaffDashboard from './pages/StaffDashboard'
+import StaffEvents from './pages/StaffEvents'
+import StaffLayouts from './pages/StaffLayouts'
+import StaffOperations from './pages/StaffOperations'
+import StaffProfile from './pages/StaffProfile'
+import StaffTasks from './pages/StaffTasks'
 import UserManagement from './pages/UserManagement'
 import VendorCoordination from './pages/VendorCoordination'
 import VenuesBooking from './pages/VenuesBooking'
@@ -24,12 +30,23 @@ const organizerPages = [
   { id: 'operations', label: 'Operations' },
 ]
 
+const staffPages = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'profile', label: 'Profile' },
+  { id: 'tasks', label: 'Tasks' },
+  { id: 'staff-events', label: 'Events' },
+  { id: 'staff-layouts', label: 'Layouts' },
+  { id: 'staff-operations', label: 'Operations' },
+]
+
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     const savedUser = localStorage.getItem(storedUserKey)
     return savedUser ? JSON.parse(savedUser) : null
   })
-  const [activePage, setActivePage] = useState(currentUser?.role === 'organizer' ? 'dashboard' : 'login')
+  const [activePage, setActivePage] = useState(
+    currentUser?.role === 'organizer' || currentUser?.role === 'staff' ? 'dashboard' : 'login'
+  )
 
   function handleLogin(user) {
     setCurrentUser(user)
@@ -56,12 +73,36 @@ function App() {
       return <Login onLogin={handleLogin} onShowRegister={() => setActivePage('register')} />
     }
 
+    if (currentUser.role === 'staff') {
+      if (activePage === 'profile') {
+        return <StaffProfile currentUser={currentUser} />
+      }
+
+      if (activePage === 'tasks') {
+        return <StaffTasks currentUser={currentUser} />
+      }
+
+      if (activePage === 'staff-events') {
+        return <StaffEvents currentUser={currentUser} />
+      }
+
+      if (activePage === 'staff-layouts') {
+        return <StaffLayouts currentUser={currentUser} />
+      }
+
+      if (activePage === 'staff-operations') {
+        return <StaffOperations currentUser={currentUser} />
+      }
+
+      return <StaffDashboard currentUser={currentUser} />
+    }
+
     if (currentUser.role !== 'organizer') {
       return (
         <section className="page-panel notice-panel">
           <p className="eyebrow">Role unavailable</p>
-          <h1>Organizer Workspace Only</h1>
-          <p>This frontend workspace is currently implemented for the Event Organizer demo only.</p>
+          <h1>Workspace Unavailable</h1>
+          <p>This frontend workspace is currently implemented for Event Organizers and Staff only.</p>
           <button type="button" onClick={handleLogout}>Return to Login</button>
         </section>
       )
@@ -110,6 +151,22 @@ function App() {
           {currentUser?.role === 'organizer' ? (
             <>
               {organizerPages.map((page) => (
+                <button
+                  key={page.id}
+                  type="button"
+                  className={activePage === page.id ? 'active' : ''}
+                  onClick={() => setActivePage(page.id)}
+                >
+                  {page.label}
+                </button>
+              ))}
+              <button type="button" onClick={handleLogout}>
+                Logout
+              </button>
+            </>
+          ) : currentUser?.role === 'staff' ? (
+            <>
+              {staffPages.map((page) => (
                 <button
                   key={page.id}
                   type="button"

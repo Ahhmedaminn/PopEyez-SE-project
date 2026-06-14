@@ -36,8 +36,8 @@ function Login({ onLogin, onShowRegister }) {
         return
       }
 
-      if (user.role !== 'organizer') {
-        setError('This workspace is currently implemented for Event Organizers only.')
+      if (!['organizer', 'staff'].includes(user.role)) {
+        setError('This workspace is currently implemented for Event Organizers and Staff only.')
         return
       }
 

@@ -1,5 +1,6 @@
 const express = require("express");
 const pool = require("../db");
+const { organizerOwnsEvent, requireEventAccess } = require("../ownership");
 
 const router = express.Router();
 
@@ -31,9 +32,19 @@ router.get("/", async function (req, res) {
 
 router.get("/event/:eventId", async function (req, res) {
   try {
-    const result = await pool.query("SELECT * FROM layouts WHERE event_id = $1 ORDER BY id ASC", [
-      req.params.eventId,
-    ]);
+    const { organizer_id, staff_id } = req.query;
+    if (!(await requireEventAccess(pool, req.params.eventId, organizer_id, staff_id))) {
+      return res.status(403).json({ error: "You do not have access to this event" });
+    }
+
+    const values = [req.params.eventId];
+    const sharedFilter = staff_id ? "AND shared_with_team = TRUE" : "";
+    const result = await pool.query(
+      `SELECT * FROM layouts
+      WHERE event_id = $1 ${sharedFilter}
+      ORDER BY id ASC`,
+      values
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching event layouts:", error);
@@ -43,6 +54,10 @@ router.get("/event/:eventId", async function (req, res) {
 
 router.get("/:id", async function (req, res) {
   try {
+    if (!created_by || !(await organizerOwnsEvent(pool, event_id, created_by))) {
+      return res.status(403).json({ error: "You can only create layouts for your own events" });
+    }
+
     const result = await pool.query("SELECT * FROM layouts WHERE id = $1", [req.params.id]);
 
     if (result.rows.length === 0) {
@@ -90,6 +105,14 @@ router.put("/:id", async function (req, res) {
   const sharedValue = shared_with_team === undefined ? null : shared_with_team;
 
   try {
+    if (!created_by) {
+      return res.status(400).json({ error: "created_by is required" });
+    }
+
+    if (event_id && !(await organizerOwnsEvent(pool, event_id, created_by))) {
+      return res.status(403).json({ error: "You can only edit layouts for your own events" });
+    }
+
     const result = await pool.query(
       `UPDATE layouts
       SET
@@ -102,6 +125,11 @@ router.put("/:id", async function (req, res) {
         export_url = COALESCE($7, export_url),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $8
+        AND EXISTS (
+          SELECT 1 FROM events
+          WHERE events.id = layouts.event_id
+            AND events.organizer_id = $3
+        )
       RETURNING *`,
       [
         event_id || null,
@@ -127,7 +155,7 @@ router.put("/:id", async function (req, res) {
 });
 
 router.patch("/:id/share", async function (req, res) {
-  const { shared_with_team } = req.body;
+  const { shared_with_team, organizer_id } = req.body;
 
   if (typeof shared_with_team !== "boolean") {
     return res.status(400).json({ error: "shared_with_team must be true or false" });
@@ -135,8 +163,16 @@ router.patch("/:id/share", async function (req, res) {
 
   try {
     const result = await pool.query(
-      "UPDATE layouts SET shared_with_team = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *",
-      [shared_with_team, req.params.id]
+      `UPDATE layouts
+      SET shared_with_team = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+        AND EXISTS (
+          SELECT 1 FROM events
+          WHERE events.id = layouts.event_id
+            AND events.organizer_id = $3
+        )
+      RETURNING *`,
+      [shared_with_team, req.params.id, organizer_id]
     );
 
     if (result.rows.length === 0) {

@@ -1,5 +1,6 @@
 const express = require("express");
 const pool = require("../db");
+const { organizerOwnsEvent } = require("../ownership");
 
 const router = express.Router();
 const allowedStatuses = ["Attending", "Not Attending", "Maybe", "No Response"];
@@ -16,6 +17,10 @@ router.get("/", async function (req, res) {
 
 router.get("/event/:eventId", async function (req, res) {
   try {
+    if (!(await organizerOwnsEvent(pool, req.params.eventId, req.query.organizer_id))) {
+      return res.status(403).json({ error: "You do not have access to this event" });
+    }
+
     const result = await pool.query("SELECT * FROM rsvps WHERE event_id = $1 ORDER BY id ASC", [
       req.params.eventId,
     ]);

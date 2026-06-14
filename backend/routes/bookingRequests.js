@@ -1,5 +1,6 @@
 const express = require("express");
 const pool = require("../db");
+const { organizerOwnsEvent } = require("../ownership");
 
 const router = express.Router();
 const allowedStatuses = ["Pending", "Approved", "Declined", "Counter Proposal"];
@@ -10,7 +11,25 @@ function isMissing(value) {
 
 router.get("/", async function (req, res) {
   try {
-    const result = await pool.query("SELECT * FROM booking_requests ORDER BY created_at DESC");
+    const organizerId = req.query.organizer_id;
+    if (!/^\d+$/.test(String(organizerId || ""))) {
+      return res.status(400).json({ error: "organizer_id is required" });
+    }
+
+    const result = await pool.query(
+      `SELECT
+        booking_requests.*,
+        booking_requests.requested_date::text AS requested_date,
+        events.name AS event_name,
+        venues.name AS venue_name
+      FROM booking_requests
+      JOIN events ON events.id = booking_requests.event_id
+      JOIN venues ON venues.id = booking_requests.venue_id
+      WHERE events.organizer_id = $1
+      ORDER BY booking_requests.created_at DESC`
+      ,
+      [organizerId]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching booking requests:", error);
@@ -20,9 +39,23 @@ router.get("/", async function (req, res) {
 
 router.get("/event/:eventId", async function (req, res) {
   try {
-    const result = await pool.query("SELECT * FROM booking_requests WHERE event_id = $1 ORDER BY created_at DESC", [
-      req.params.eventId,
-    ]);
+    if (!(await organizerOwnsEvent(pool, req.params.eventId, req.query.organizer_id))) {
+      return res.status(403).json({ error: "You do not have access to this event" });
+    }
+
+    const result = await pool.query(
+      `SELECT
+        booking_requests.*,
+        booking_requests.requested_date::text AS requested_date,
+        events.name AS event_name,
+        venues.name AS venue_name
+      FROM booking_requests
+      JOIN events ON events.id = booking_requests.event_id
+      JOIN venues ON venues.id = booking_requests.venue_id
+      WHERE booking_requests.event_id = $1
+      ORDER BY booking_requests.created_at DESC`,
+      [req.params.eventId]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching event booking requests:", error);
@@ -32,7 +65,18 @@ router.get("/event/:eventId", async function (req, res) {
 
 router.get("/:id", async function (req, res) {
   try {
-    const result = await pool.query("SELECT * FROM booking_requests WHERE id = $1", [req.params.id]);
+    const result = await pool.query(
+      `SELECT
+        booking_requests.*,
+        booking_requests.requested_date::text AS requested_date,
+        events.name AS event_name,
+        venues.name AS venue_name
+      FROM booking_requests
+      JOIN events ON events.id = booking_requests.event_id
+      JOIN venues ON venues.id = booking_requests.venue_id
+      WHERE booking_requests.id = $1`,
+      [req.params.id]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Booking request not found" });
@@ -67,6 +111,27 @@ router.post("/", async function (req, res) {
   }
 
   try {
+    if (!(await organizerOwnsEvent(pool, event_id, organizer_id))) {
+      return res.status(403).json({ error: "You can only book venues for your own events" });
+    }
+
+    const availabilityResult = await pool.query(
+      `SELECT 1
+      FROM venue_availability
+      JOIN venues ON venues.id = venue_availability.venue_id
+      WHERE venue_availability.venue_id = $1
+        AND venue_availability.available_date = $2
+        AND venue_availability.is_available = TRUE
+        AND venues.status = 'Active'`,
+      [venue_id, requested_date]
+    );
+
+    if (availabilityResult.rows.length === 0) {
+      return res.status(400).json({
+        error: "Venue is not available on the requested date",
+      });
+    }
+
     const result = await pool.query(
       `INSERT INTO booking_requests (
         event_id, venue_id, organizer_id, requested_date, expected_attendees,

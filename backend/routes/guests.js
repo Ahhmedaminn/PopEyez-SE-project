@@ -1,7 +1,9 @@
 const express = require("express");
 const pool = require("../db");
+const { organizerOwnsEvent } = require("../ownership");
 
 const router = express.Router();
+const allowedRsvpStatuses = ["Attending", "Not Attending", "Maybe", "No Response"];
 
 function isMissing(value) {
   return value === undefined || value === null || value === "";
@@ -9,7 +11,19 @@ function isMissing(value) {
 
 router.get("/", async function (req, res) {
   try {
-    const result = await pool.query("SELECT * FROM guests ORDER BY id ASC");
+    const { organizer_id } = req.query;
+    if (!/^\d+$/.test(String(organizer_id || ""))) {
+      return res.status(400).json({ error: "organizer_id is required" });
+    }
+
+    const result = await pool.query(
+      `SELECT guests.*, events.name AS event_name
+      FROM guests
+      JOIN events ON events.id = guests.event_id
+      WHERE events.organizer_id = $1
+      ORDER BY guests.full_name ASC`,
+      [organizer_id]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching guests:", error);
@@ -18,33 +32,68 @@ router.get("/", async function (req, res) {
 });
 
 router.get("/search", async function (req, res) {
-  const { name, email, dietary_preference, event_id } = req.query;
+  const { name, email, dietary_preference, event_id, rsvp_status, organizer_id } = req.query;
   const filters = [];
   const values = [];
 
+  if (!/^\d+$/.test(String(organizer_id || ""))) {
+    return res.status(400).json({ error: "organizer_id is required" });
+  }
+
+  values.push(organizer_id);
+  filters.push(`events.organizer_id = $${values.length}`);
+
   if (name) {
     values.push(`%${name}%`);
-    filters.push(`full_name ILIKE $${values.length}`);
+    filters.push(`guests.full_name ILIKE $${values.length}`);
   }
 
   if (email) {
     values.push(`%${email}%`);
-    filters.push(`email ILIKE $${values.length}`);
+    filters.push(`guests.email ILIKE $${values.length}`);
   }
 
   if (dietary_preference) {
     values.push(`%${dietary_preference}%`);
-    filters.push(`dietary_preferences ILIKE $${values.length}`);
+    filters.push(`COALESCE(rsvps.dietary_preferences, guests.dietary_preferences, '') ILIKE $${values.length}`);
   }
 
   if (event_id) {
     values.push(event_id);
-    filters.push(`event_id = $${values.length}`);
+    filters.push(`guests.event_id = $${values.length}`);
+  }
+
+  if (rsvp_status) {
+    if (!allowedRsvpStatuses.includes(rsvp_status)) {
+      return res.status(400).json({ error: "Invalid RSVP status" });
+    }
+
+    values.push(rsvp_status);
+    filters.push(`COALESCE(rsvps.status, 'No Response') = $${values.length}`);
   }
 
   try {
-    const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
-    const result = await pool.query(`SELECT * FROM guests ${whereClause} ORDER BY id ASC`, values);
+    const result = await pool.query(
+      `SELECT
+        guests.*,
+        events.name AS event_name,
+        COALESCE(rsvps.status, 'No Response') AS rsvp_status,
+        invitations.id AS invitation_id,
+        invitations.status AS invitation_status,
+        invitations.channel AS invitation_channel,
+        invitations.sent_at
+      FROM guests
+      JOIN events ON events.id = guests.event_id
+      LEFT JOIN rsvps
+        ON rsvps.event_id = guests.event_id
+        AND rsvps.guest_id = guests.id
+      LEFT JOIN invitations
+        ON invitations.event_id = guests.event_id
+        AND invitations.guest_id = guests.id
+      WHERE ${filters.join(" AND ")}
+      ORDER BY guests.full_name ASC`,
+      values
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error searching guests:", error);
@@ -54,6 +103,10 @@ router.get("/search", async function (req, res) {
 
 router.get("/event/:eventId", async function (req, res) {
   try {
+    if (!(await organizerOwnsEvent(pool, req.params.eventId, req.query.organizer_id))) {
+      return res.status(403).json({ error: "You do not have access to this event" });
+    }
+
     const result = await pool.query("SELECT * FROM guests WHERE event_id = $1 ORDER BY id ASC", [
       req.params.eventId,
     ]);
@@ -66,7 +119,13 @@ router.get("/event/:eventId", async function (req, res) {
 
 router.get("/:id", async function (req, res) {
   try {
-    const result = await pool.query("SELECT * FROM guests WHERE id = $1", [req.params.id]);
+    const result = await pool.query(
+      `SELECT guests.*, events.name AS event_name
+      FROM guests
+      JOIN events ON events.id = guests.event_id
+      WHERE guests.id = $1 AND events.organizer_id = $2`,
+      [req.params.id, req.query.organizer_id]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Guest not found" });
@@ -89,13 +148,26 @@ router.post("/", async function (req, res) {
     dietary_preferences,
     special_requirements,
     notes,
+    organizer_id,
   } = req.body;
 
   if (isMissing(event_id) || isMissing(full_name)) {
     return res.status(400).json({ error: "event_id and full_name are required" });
   }
 
+  if (!String(full_name).trim()) {
+    return res.status(400).json({ error: "full_name cannot be empty" });
+  }
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: "Invalid guest email" });
+  }
+
   try {
+    if (!(await organizerOwnsEvent(pool, event_id, organizer_id))) {
+      return res.status(403).json({ error: "You can only add guests to your own events" });
+    }
+
     const result = await pool.query(
       `INSERT INTO guests (
         event_id, user_id, full_name, email, phone, dietary_preferences, special_requirements, notes
@@ -105,12 +177,12 @@ router.post("/", async function (req, res) {
       [
         event_id,
         user_id || null,
-        full_name,
-        email || null,
-        phone || null,
-        dietary_preferences || null,
-        special_requirements || null,
-        notes || null,
+        String(full_name).trim(),
+        email ? String(email).trim() : null,
+        phone ? String(phone).trim() : null,
+        dietary_preferences ? String(dietary_preferences).trim() : null,
+        special_requirements ? String(special_requirements).trim() : null,
+        notes ? String(notes).trim() : null,
       ]
     );
     res.status(201).json(result.rows[0]);
@@ -130,9 +202,27 @@ router.put("/:id", async function (req, res) {
     dietary_preferences,
     special_requirements,
     notes,
+    organizer_id,
   } = req.body;
 
   try {
+    const currentGuestResult = await pool.query(
+      `SELECT guests.event_id
+      FROM guests
+      JOIN events ON events.id = guests.event_id
+      WHERE guests.id = $1 AND events.organizer_id = $2`,
+      [req.params.id, organizer_id]
+    );
+
+    if (currentGuestResult.rows.length === 0) {
+      return res.status(404).json({ error: "Guest not found" });
+    }
+
+    const targetEventId = event_id || currentGuestResult.rows[0].event_id;
+    if (!(await organizerOwnsEvent(pool, targetEventId, organizer_id))) {
+      return res.status(403).json({ error: "You can only edit guests for your own events" });
+    }
+
     const result = await pool.query(
       `UPDATE guests
       SET

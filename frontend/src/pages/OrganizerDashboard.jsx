@@ -35,7 +35,7 @@ function EventList({ title, events }) {
   )
 }
 
-function OrganizerDashboard() {
+function OrganizerDashboard({ currentUser }) {
   const [dashboard, setDashboard] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -45,7 +45,7 @@ function OrganizerDashboard() {
 
     async function loadDashboard() {
       try {
-        const data = await apiGet('/dashboard/organizer')
+        const data = await apiGet(`/dashboard/organizer?organizer_id=${currentUser.id}`)
 
         if (!ignore) {
           setDashboard(data)
@@ -67,7 +67,7 @@ function OrganizerDashboard() {
     return () => {
       ignore = true
     }
-  }, [])
+  }, [currentUser.id])
 
   if (loading) {
     return <section className="page-panel">Loading organizer dashboard...</section>
@@ -111,18 +111,54 @@ function OrganizerDashboard() {
           <strong>{dashboard.arrived_guests_count}</strong>
         </article>
         <article>
-          <span>Positive feedback</span>
-          <strong>{dashboard.positive_feedback_count}</strong>
+          <span>Positive feedback average</span>
+          <strong>
+            {dashboard.average_positive_feedback_rating === null
+              ? 'N/A'
+              : `${dashboard.average_positive_feedback_rating} / 5`}
+          </strong>
+          <small>
+            {dashboard.positive_feedback_count} positive {dashboard.positive_feedback_count === 1 ? 'response' : 'responses'}
+          </small>
         </article>
         <article>
-          <span>Negative feedback</span>
-          <strong>{dashboard.negative_feedback_count}</strong>
+          <span>Negative feedback average</span>
+          <strong>
+            {dashboard.average_negative_feedback_rating === null
+              ? 'N/A'
+              : `${dashboard.average_negative_feedback_rating} / 5`}
+          </strong>
+          <small>
+            {dashboard.negative_feedback_count} negative {dashboard.negative_feedback_count === 1 ? 'response' : 'responses'}
+          </small>
         </article>
       </section>
 
       <div className="dashboard-grid">
         <EventList title="Today's Events" events={dashboard.todays_events || []} />
         <EventList title="Upcoming Events" events={dashboard.upcoming_events || []} />
+
+        <section className="page-panel">
+          <div className="panel-header">
+            <h2>Due Soon Tasks</h2>
+            <span>{dashboard.due_soon_tasks?.length || 0}</span>
+          </div>
+
+          {!dashboard.due_soon_tasks?.length ? (
+            <p className="empty-state">No unfinished tasks are due in the next seven days.</p>
+          ) : (
+            <ul className="list">
+              {dashboard.due_soon_tasks.map((task) => (
+                <li key={task.id}>
+                  <strong>{task.title}</strong>
+                  <span>
+                    {task.event_name} · due {formatDate(`${task.due_date}T00:00:00`)} · {task.status}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         <section className="page-panel">
           <div className="panel-header">

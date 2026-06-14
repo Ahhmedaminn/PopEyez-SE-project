@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { apiGet, apiPatch } from '../api'
 
 function formatDate(value) {
@@ -13,7 +13,7 @@ function StaffOperations({ currentUser }) {
   const [messages, setMessages] = useState([])
   const [message, setMessage] = useState('')
 
-  async function loadEventOperations(eventId) {
+  const loadEventOperations = useCallback(async (eventId) => {
     if (!eventId) {
       setCheckins([])
       setDeliveries([])
@@ -22,15 +22,15 @@ function StaffOperations({ currentUser }) {
     }
 
     const [checkinsData, deliveriesData, messagesData] = await Promise.all([
-      apiGet(`/checkins/event/${eventId}`),
-      apiGet(`/deliveries/event/${eventId}`),
-      apiGet(`/messages/event/${eventId}`),
+      apiGet(`/checkins/event/${eventId}?staff_id=${currentUser.id}`),
+      apiGet(`/deliveries/event/${eventId}?staff_id=${currentUser.id}`),
+      apiGet(`/messages/event/${eventId}?staff_id=${currentUser.id}`),
     ])
 
     setCheckins(checkinsData)
     setDeliveries(deliveriesData)
     setMessages(messagesData)
-  }
+  }, [currentUser.id])
 
   useEffect(() => {
     async function loadAssignedEvents() {
@@ -65,7 +65,7 @@ function StaffOperations({ currentUser }) {
     }
 
     loadAssignedEvents()
-  }, [currentUser.id])
+  }, [currentUser.id, loadEventOperations])
 
   async function changeSelectedEvent(eventId) {
     setSelectedEventId(eventId)
@@ -82,7 +82,7 @@ function StaffOperations({ currentUser }) {
     setMessage('')
 
     try {
-      await apiPatch(`/checkins/${id}/status`, { status })
+      await apiPatch(`/checkins/${id}/status`, { status, staff_id: currentUser.id })
       setMessage('Guest check-in updated.')
       await loadEventOperations(selectedEventId)
     } catch (err) {
@@ -94,7 +94,7 @@ function StaffOperations({ currentUser }) {
     setMessage('')
 
     try {
-      await apiPatch(`/deliveries/${id}/status`, { status: 'Arrived' })
+      await apiPatch(`/deliveries/${id}/status`, { status: 'Arrived', staff_id: currentUser.id })
       setMessage('Vendor delivery marked as arrived.')
       await loadEventOperations(selectedEventId)
     } catch (err) {

@@ -5,8 +5,33 @@ const router = express.Router();
 const allowedStatuses = ["Pending Review", "Approved", "Paid", "Rejected"];
 
 router.get("/", async function (req, res) {
+  const { organizer_id } = req.query;
+  const values = [];
+  const filters = [];
+
+  if (organizer_id) {
+    if (!/^\d+$/.test(organizer_id)) {
+      return res.status(400).json({ error: "Invalid organizer_id" });
+    }
+
+    values.push(organizer_id);
+    filters.push(`events.organizer_id = $${values.length}`);
+  }
+
   try {
-    const result = await pool.query("SELECT * FROM invoices ORDER BY created_at DESC");
+    const whereClause = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
+    const result = await pool.query(
+      `SELECT
+        invoices.*,
+        events.name AS event_name,
+        vendors.company_name AS vendor_name
+      FROM invoices
+      JOIN events ON events.id = invoices.event_id
+      JOIN vendors ON vendors.id = invoices.vendor_id
+      ${whereClause}
+      ORDER BY invoices.created_at DESC`,
+      values
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching invoices:", error);
@@ -39,7 +64,7 @@ router.get("/vendor/:vendorId", async function (req, res) {
 });
 
 router.patch("/:id/status", async function (req, res) {
-  const { status } = req.body;
+  const { status, organizer_id } = req.body;
 
   if (!allowedStatuses.includes(status)) {
     return res.status(400).json({ error: "Invalid invoice status" });
@@ -51,8 +76,13 @@ router.patch("/:id/status", async function (req, res) {
       SET status = $1,
           reviewed_at = CASE WHEN $1 IN ('Approved', 'Rejected') THEN CURRENT_TIMESTAMP ELSE reviewed_at END
       WHERE id = $2
+        AND EXISTS (
+          SELECT 1 FROM events
+          WHERE events.id = invoices.event_id
+            AND events.organizer_id = $3
+        )
       RETURNING *`,
-      [status, req.params.id]
+      [status, req.params.id, organizer_id]
     );
 
     if (result.rows.length === 0) {

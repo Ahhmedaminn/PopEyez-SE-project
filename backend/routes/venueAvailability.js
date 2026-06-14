@@ -5,7 +5,18 @@ const router = express.Router();
 
 router.get("/", async function (req, res) {
   try {
-    const result = await pool.query("SELECT * FROM venue_availability ORDER BY available_date ASC");
+    const result = await pool.query(
+      `SELECT
+        id,
+        venue_id,
+        available_date::text AS available_date,
+        is_available,
+        price_override,
+        notes,
+        created_at
+      FROM venue_availability
+      ORDER BY available_date ASC`
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching venue availability:", error);
@@ -16,7 +27,17 @@ router.get("/", async function (req, res) {
 router.get("/venue/:venueId", async function (req, res) {
   try {
     const result = await pool.query(
-      "SELECT * FROM venue_availability WHERE venue_id = $1 ORDER BY available_date ASC",
+      `SELECT
+        id,
+        venue_id,
+        available_date::text AS available_date,
+        is_available,
+        price_override,
+        notes,
+        created_at
+      FROM venue_availability
+      WHERE venue_id = $1
+      ORDER BY available_date ASC`,
       [req.params.venueId]
     );
     res.json(result.rows);
@@ -29,10 +50,10 @@ router.get("/venue/:venueId", async function (req, res) {
 router.get("/date/:date", async function (req, res) {
   try {
     const result = await pool.query(
-      `SELECT venues.*, venue_availability.available_date, venue_availability.price_override
+      `SELECT venues.*, venue_availability.available_date::text AS available_date, venue_availability.price_override
       FROM venue_availability
       JOIN venues ON venues.id = venue_availability.venue_id
-      WHERE venue_availability.available_date = $1
+      WHERE venue_availability.available_date = $1::date
         AND venue_availability.is_available = TRUE
         AND venues.status = 'Active'
       ORDER BY venues.id ASC`,

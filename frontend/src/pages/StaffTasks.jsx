@@ -2,7 +2,8 @@
 import { useEffect, useState } from 'react'
 import { apiGet, apiPatch } from '../api'
 
-const taskStatuses = ['Not Assigned', 'Pending', 'In Progress', 'Done', 'Overdue']
+const taskFilterStatuses = ['Pending', 'In Progress', 'Done', 'Overdue']
+const staffEditableStatuses = ['Pending', 'In Progress', 'Done']
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleDateString() : 'No date'
@@ -29,7 +30,7 @@ function StaffTasks({ currentUser }) {
     setMessage('')
 
     try {
-      await apiPatch(`/tasks/${id}/status`, { status })
+      await apiPatch(`/tasks/${id}/status`, { status, staff_id: currentUser.id })
       setMessage('Task status updated.')
       await loadTasks()
     } catch (err) {
@@ -50,7 +51,7 @@ function StaffTasks({ currentUser }) {
           Status
           <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
             <option value="">All statuses</option>
-            {taskStatuses.map((status) => (
+            {taskFilterStatuses.map((status) => (
               <option key={status} value={status}>{status}</option>
             ))}
           </select>
@@ -74,8 +75,11 @@ function StaffTasks({ currentUser }) {
                 <span>{task.description || 'No description'}</span>
                 <span>{task.category || 'No category'} - due {formatDate(task.due_date)} - {task.status}</span>
                 <span>{task.event_name} - {formatDate(task.event_date)} - {task.event_status}</span>
-                <select value={task.status} onChange={(event) => updateTaskStatus(task.id, event.target.value)}>
-                  {taskStatuses.map((status) => (
+                <select value={staffEditableStatuses.includes(task.status) ? task.status : ''} onChange={(event) => updateTaskStatus(task.id, event.target.value)}>
+                  {!staffEditableStatuses.includes(task.status) && (
+                    <option value="" disabled>{task.status}</option>
+                  )}
+                  {staffEditableStatuses.map((status) => (
                     <option key={status} value={status}>{status}</option>
                   ))}
                 </select>

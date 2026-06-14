@@ -1,5 +1,6 @@
 const express = require("express");
 const pool = require("../db");
+const { organizerOwnsEvent } = require("../ownership");
 
 const router = express.Router();
 
@@ -7,6 +8,10 @@ router.get("/event/:eventId", async function (req, res) {
   const { eventId } = req.params;
 
   try {
+    if (!(await organizerOwnsEvent(pool, eventId, req.query.organizer_id))) {
+      return res.status(403).json({ error: "You do not have access to this event" });
+    }
+
     const eventResult = await pool.query("SELECT * FROM events WHERE id = $1", [eventId]);
 
     if (eventResult.rows.length === 0) {
@@ -35,7 +40,14 @@ router.get("/event/:eventId", async function (req, res) {
     );
 
     const feedbackResult = await pool.query(
-      "SELECT ROUND(AVG(overall_rating), 2) AS average_overall_rating FROM feedback WHERE event_id = $1",
+      `SELECT
+        ROUND(AVG(overall_rating), 2) AS average_overall_rating,
+        COUNT(*) AS total_feedback,
+        COUNT(*) FILTER (WHERE sentiment = 'Positive') AS positive_feedback,
+        COUNT(*) FILTER (WHERE sentiment = 'Neutral') AS neutral_feedback,
+        COUNT(*) FILTER (WHERE sentiment = 'Negative') AS negative_feedback
+      FROM feedback
+      WHERE event_id = $1`,
       [eventId]
     );
 
@@ -54,6 +66,12 @@ router.get("/event/:eventId", async function (req, res) {
       arrived_guests: arrivedGuests,
       not_arrived_guests: totalGuests - arrivedGuests,
       average_overall_rating: averageOverallRating === null ? null : Number(averageOverallRating),
+      feedback_summary: {
+        total: Number(feedbackResult.rows[0].total_feedback),
+        positive: Number(feedbackResult.rows[0].positive_feedback),
+        neutral: Number(feedbackResult.rows[0].neutral_feedback),
+        negative: Number(feedbackResult.rows[0].negative_feedback),
+      },
     });
   } catch (error) {
     console.error("Error fetching event report:", error);

@@ -6,6 +6,7 @@ import GuestManagement from './pages/GuestManagement'
 import Login from './pages/Login'
 import OperationsReports from './pages/OperationsReports'
 import OrganizerDashboard from './pages/OrganizerDashboard'
+import OrganizerProfile from './pages/OrganizerProfile'
 import Register from './pages/Register'
 import StaffDashboard from './pages/StaffDashboard'
 import StaffEvents from './pages/StaffEvents'
@@ -21,6 +22,7 @@ const storedUserKey = 'popeyezCurrentUser'
 
 const organizerPages = [
   { id: 'dashboard', label: 'Dashboard' },
+  { id: 'organizer-profile', label: 'Profile' },
   { id: 'users', label: 'Users' },
   { id: 'events', label: 'Events & Tasks' },
   { id: 'finance', label: 'Budget' },
@@ -58,6 +60,11 @@ function App() {
     setCurrentUser(null)
     localStorage.removeItem(storedUserKey)
     setActivePage('login')
+  }
+
+  function handleUserUpdated(user) {
+    setCurrentUser(user)
+    localStorage.setItem(storedUserKey, JSON.stringify(user))
   }
 
   function renderPage() {
@@ -109,7 +116,11 @@ function App() {
     }
 
     if (activePage === 'users') {
-      return <UserManagement />
+      return <UserManagement currentUser={currentUser} />
+    }
+
+    if (activePage === 'organizer-profile') {
+      return <OrganizerProfile currentUser={currentUser} onUserUpdated={handleUserUpdated} />
     }
 
     if (activePage === 'events') {
@@ -117,7 +128,7 @@ function App() {
     }
 
     if (activePage === 'finance') {
-      return <BudgetExpenses />
+      return <BudgetExpenses currentUser={currentUser} />
     }
 
     if (activePage === 'venues') {
@@ -136,7 +147,7 @@ function App() {
       return <OperationsReports currentUser={currentUser} />
     }
 
-    return <OrganizerDashboard />
+    return <OrganizerDashboard currentUser={currentUser} />
   }
 
   return (
@@ -154,13 +165,13 @@ function App() {
                 <button
                   key={page.id}
                   type="button"
-                  className={activePage === page.id ? 'active' : ''}
+                  className={`nav-button ${activePage === page.id ? 'active' : ''}`}
                   onClick={() => setActivePage(page.id)}
                 >
                   {page.label}
                 </button>
               ))}
-              <button type="button" onClick={handleLogout}>
+              <button type="button" className="logout-button" onClick={handleLogout}>
                 Logout
               </button>
             </>
@@ -170,18 +181,18 @@ function App() {
                 <button
                   key={page.id}
                   type="button"
-                  className={activePage === page.id ? 'active' : ''}
+                  className={`nav-button ${activePage === page.id ? 'active' : ''}`}
                   onClick={() => setActivePage(page.id)}
                 >
                   {page.label}
                 </button>
               ))}
-              <button type="button" onClick={handleLogout}>
+              <button type="button" className="logout-button" onClick={handleLogout}>
                 Logout
               </button>
             </>
           ) : currentUser ? (
-            <button type="button" onClick={handleLogout}>
+            <button type="button" className="logout-button" onClick={handleLogout}>
               Logout
             </button>
           ) : (

@@ -24,7 +24,7 @@ function StaffLayouts({ currentUser }) {
         })
 
         const layoutGroups = await Promise.all(
-          Array.from(eventsById.keys()).map((eventId) => apiGet(`/layouts/event/${eventId}`))
+          Array.from(eventsById.keys()).map((eventId) => apiGet(`/layouts/event/${eventId}?staff_id=${currentUser.id}`))
         )
 
         const sharedLayouts = layoutGroups

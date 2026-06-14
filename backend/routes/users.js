@@ -11,7 +11,7 @@ function isMissing(value) {
 }
 
 router.get("/", async function (req, res) {
-  const { role, status, employment_type, speciality } = req.query;
+  const { role, status, employment_type, speciality, created_by } = req.query;
   const filters = [];
   const values = [];
 
@@ -51,6 +51,17 @@ router.get("/", async function (req, res) {
   if (speciality) {
     values.push(`%${speciality}%`);
     filters.push(`speciality ILIKE $${values.length}`);
+  }
+
+  if (created_by) {
+    if (!/^\d+$/.test(created_by)) {
+      return res.status(400).json({
+        error: "Invalid created_by",
+      });
+    }
+
+    values.push(created_by);
+    filters.push(`created_by = $${values.length}`);
   }
 
   try {
@@ -124,6 +135,25 @@ router.post("/", async function (req, res) {
   }
 
   try {
+    if (created_by) {
+      if (!["staff", "vendor", "guest"].includes(role)) {
+        return res.status(400).json({
+          error: "Organizers can only create staff, vendor, or guest accounts",
+        });
+      }
+
+      const creatorResult = await pool.query(
+        "SELECT 1 FROM users WHERE id = $1 AND role = 'organizer' AND status = 'Active'",
+        [created_by]
+      );
+
+      if (creatorResult.rows.length === 0) {
+        return res.status(403).json({
+          error: "A valid active organizer is required",
+        });
+      }
+    }
+
     const result = await pool.query(
       `INSERT INTO users (
         full_name, email, password_hash, role, status, phone, age,
@@ -168,6 +198,7 @@ router.put("/:id", async function (req, res) {
     employment_type,
     company_name,
     created_by,
+    actor_id,
   } = req.body;
 
   if (role && !allowedRoles.includes(role)) {
@@ -189,34 +220,46 @@ router.put("/:id", async function (req, res) {
   }
 
   try {
+    if (String(actor_id || "") !== String(req.params.id)) {
+      return res.status(403).json({
+        error: "Users can only update their own profile",
+      });
+    }
+
+    if (role || status || created_by) {
+      return res.status(400).json({
+        error: "Profile updates cannot change role, status, or ownership",
+      });
+    }
+
     const result = await pool.query(
       `UPDATE users
       SET
         full_name = COALESCE($1, full_name),
         email = COALESCE($2, email),
         password_hash = COALESCE($3, password_hash),
-        role = COALESCE($4, role),
-        status = COALESCE($5, status),
+        role = role,
+        status = status,
         phone = COALESCE($6, phone),
         age = COALESCE($7, age),
         speciality = COALESCE($8, speciality),
         employment_type = COALESCE($9, employment_type),
         company_name = COALESCE($10, company_name),
-        created_by = COALESCE($11, created_by)
+        created_by = created_by
       WHERE id = $12
       RETURNING *`,
       [
         full_name || null,
         email || null,
         password_hash || null,
-        role || null,
-        status || null,
+        null,
+        null,
         phone || null,
         age || null,
         speciality || null,
         employment_type || null,
         company_name || null,
-        created_by || null,
+        null,
         req.params.id,
       ]
     );
@@ -237,7 +280,7 @@ router.put("/:id", async function (req, res) {
 });
 
 router.patch("/:id/status", async function (req, res) {
-  const { status } = req.body;
+  const { status, organizer_id } = req.body;
 
   if (!allowedUserStatuses.includes(status)) {
     return res.status(400).json({
@@ -245,11 +288,22 @@ router.patch("/:id/status", async function (req, res) {
     });
   }
 
+  if (!/^\d+$/.test(String(organizer_id || ""))) {
+    return res.status(400).json({
+      error: "organizer_id is required",
+    });
+  }
+
   try {
-    const result = await pool.query("UPDATE users SET status = $1 WHERE id = $2 RETURNING *", [
-      status,
-      req.params.id,
-    ]);
+    const result = await pool.query(
+      `UPDATE users
+      SET status = $1
+      WHERE id = $2
+        AND created_by = $3
+        AND role IN ('staff', 'vendor', 'guest', 'venueOwner')
+      RETURNING *`,
+      [status, req.params.id, organizer_id]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({

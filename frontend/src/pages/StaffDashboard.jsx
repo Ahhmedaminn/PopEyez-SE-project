@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiGet } from '../api'
 
-const taskStatuses = ['Not Assigned', 'Pending', 'In Progress', 'Done', 'Overdue']
+const taskStatuses = ['Pending', 'In Progress', 'Done', 'Overdue']
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleDateString() : 'No date'

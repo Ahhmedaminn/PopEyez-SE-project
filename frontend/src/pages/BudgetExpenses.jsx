@@ -1,68 +1,219 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState } from 'react'
-import { apiGet, apiPost } from '../api'
+import { apiGet, apiPost, apiPut } from '../api'
+import DateSelect from '../components/DateSelect'
 
-function BudgetExpenses() {
+const commonCategories = ['Venue', 'Catering', 'Audio Visual', 'Decor', 'Staff', 'Marketing', 'Transport', 'Other']
+const emptyBudgetForm = { category: '', planned_amount: '', notes: '' }
+const emptyExpenseForm = { title: '', amount: '', category: '', spent_at: '' }
+
+function formatAmount(value) {
+  return `${Number(value || 0).toLocaleString()} EGP`
+}
+
+function formatDate(value) {
+  return value ? new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString() : 'No date'
+}
+
+function isPositiveAmount(value) {
+  return value !== '' && Number.isFinite(Number(value)) && Number(value) > 0
+}
+
+function BudgetExpenses({ currentUser }) {
   const [events, setEvents] = useState([])
-  const [selectedEventId, setSelectedEventId] = useState('1')
+  const [selectedEventId, setSelectedEventId] = useState('')
   const [budgets, setBudgets] = useState([])
   const [expenses, setExpenses] = useState([])
   const [message, setMessage] = useState('')
-  const [budgetForm, setBudgetForm] = useState({ category: '', planned_amount: '', notes: '' })
-  const [expenseForm, setExpenseForm] = useState({ title: '', amount: '', category: '', spent_at: '' })
+  const [isError, setIsError] = useState(false)
+  const [editingBudgetId, setEditingBudgetId] = useState(null)
+  const [editingExpenseId, setEditingExpenseId] = useState(null)
+  const [budgetForm, setBudgetForm] = useState(emptyBudgetForm)
+  const [expenseForm, setExpenseForm] = useState(emptyExpenseForm)
 
-  async function loadData() {
-    const [eventsData, budgetsData, expensesData] = await Promise.all([
-      apiGet('/events'),
-      apiGet(`/budgets/event/${selectedEventId}`),
-      apiGet(`/expenses/event/${selectedEventId}`),
+  useEffect(() => {
+    let ignore = false
+
+    async function loadEvents() {
+      try {
+        const eventsData = await apiGet(`/events?organizer_id=${currentUser.id}`)
+        if (!ignore) {
+          setEvents(eventsData)
+          setSelectedEventId((current) => current || String(eventsData[0]?.id || ''))
+          setMessage('')
+          setIsError(false)
+        }
+      } catch (error) {
+        if (!ignore) {
+          setMessage(error.message || 'Could not load organizer events.')
+          setIsError(true)
+        }
+      }
+    }
+
+    loadEvents()
+    return () => {
+      ignore = true
+    }
+  }, [currentUser.id])
+
+  async function loadFinancialData(eventId = selectedEventId) {
+    if (!eventId) {
+      setBudgets([])
+      setExpenses([])
+      return
+    }
+
+    const [budgetsData, expensesData] = await Promise.all([
+      apiGet(`/budgets/event/${eventId}?organizer_id=${currentUser.id}`),
+      apiGet(`/expenses/event/${eventId}?organizer_id=${currentUser.id}`),
     ])
-    setEvents(eventsData)
     setBudgets(budgetsData)
     setExpenses(expensesData)
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadData().catch(() => setMessage('Could not load budget data.'))
-  }, [selectedEventId])
+    let ignore = false
 
+    async function loadSelectedEvent() {
+      try {
+        if (!selectedEventId) {
+          setBudgets([])
+          setExpenses([])
+          return
+        }
+
+        const [budgetsData, expensesData] = await Promise.all([
+          apiGet(`/budgets/event/${selectedEventId}?organizer_id=${currentUser.id}`),
+          apiGet(`/expenses/event/${selectedEventId}?organizer_id=${currentUser.id}`),
+        ])
+
+        if (!ignore) {
+          setBudgets(budgetsData)
+          setExpenses(expensesData)
+          setMessage('')
+          setIsError(false)
+        }
+      } catch (error) {
+        if (!ignore) {
+          setMessage(error.message || 'Could not load budget data.')
+          setIsError(true)
+        }
+      }
+    }
+
+    loadSelectedEvent()
+    return () => {
+      ignore = true
+    }
+  }, [selectedEventId, currentUser.id])
+
+  const selectedEvent = events.find((event) => String(event.id) === selectedEventId)
   const plannedTotal = budgets.reduce((total, item) => total + Number(item.planned_amount || 0), 0)
   const actualTotal = expenses.reduce((total, item) => total + Number(item.amount || 0), 0)
+  const difference = plannedTotal - actualTotal
 
-  async function createBudget(event) {
+  function resetBudgetForm() {
+    setBudgetForm(emptyBudgetForm)
+    setEditingBudgetId(null)
+  }
+
+  function resetExpenseForm() {
+    setExpenseForm(emptyExpenseForm)
+    setEditingExpenseId(null)
+  }
+
+  async function saveBudget(event) {
     event.preventDefault()
+
+    if (!selectedEventId || !budgetForm.category.trim() || !isPositiveAmount(budgetForm.planned_amount)) {
+      setMessage('Choose an event and enter a category with a planned amount greater than zero.')
+      setIsError(true)
+      return
+    }
+
     try {
-      await apiPost('/budgets', {
+      const body = {
         event_id: selectedEventId,
-        category: budgetForm.category,
-        planned_amount: budgetForm.planned_amount,
-        notes: budgetForm.notes || null,
-      })
-      setBudgetForm({ category: '', planned_amount: '', notes: '' })
-      setMessage('Budget row created.')
-      await loadData()
-    } catch (err) {
-      setMessage(err.message || 'Could not create budget row.')
+        category: budgetForm.category.trim(),
+        planned_amount: Number(budgetForm.planned_amount),
+        notes: budgetForm.notes.trim() || null,
+        organizer_id: currentUser.id,
+      }
+
+      if (editingBudgetId) {
+        await apiPut(`/budgets/${editingBudgetId}`, body)
+        setMessage('Budget category updated.')
+      } else {
+        await apiPost('/budgets', body)
+        setMessage('Budget category added.')
+      }
+
+      setIsError(false)
+      resetBudgetForm()
+      await loadFinancialData()
+    } catch (error) {
+      setMessage(error.message || 'Could not save budget category.')
+      setIsError(true)
     }
   }
 
-  async function createExpense(event) {
+  async function saveExpense(event) {
     event.preventDefault()
-    try {
-      await apiPost('/expenses', {
-        event_id: selectedEventId,
-        title: expenseForm.title,
-        amount: expenseForm.amount,
-        category: expenseForm.category || null,
-        spent_at: expenseForm.spent_at || null,
-      })
-      setExpenseForm({ title: '', amount: '', category: '', spent_at: '' })
-      setMessage('Expense recorded.')
-      await loadData()
-    } catch (err) {
-      setMessage(err.message || 'Could not record expense.')
+
+    if (!selectedEventId || !expenseForm.title.trim() || !isPositiveAmount(expenseForm.amount)) {
+      setMessage('Choose an event and enter an expense title with an amount greater than zero.')
+      setIsError(true)
+      return
     }
+
+    try {
+      const body = {
+        event_id: selectedEventId,
+        title: expenseForm.title.trim(),
+        amount: Number(expenseForm.amount),
+        category: expenseForm.category.trim() || null,
+        spent_at: expenseForm.spent_at || null,
+        organizer_id: currentUser.id,
+      }
+
+      if (editingExpenseId) {
+        await apiPut(`/expenses/${editingExpenseId}`, body)
+        setMessage('Expense updated.')
+      } else {
+        await apiPost('/expenses', body)
+        setMessage('Expense recorded.')
+      }
+
+      setIsError(false)
+      resetExpenseForm()
+      await loadFinancialData()
+    } catch (error) {
+      setMessage(error.message || 'Could not save expense.')
+      setIsError(true)
+    }
+  }
+
+  function editBudget(item) {
+    setEditingBudgetId(item.id)
+    setBudgetForm({
+      category: item.category,
+      planned_amount: String(item.planned_amount),
+      notes: item.notes || '',
+    })
+    setMessage(`Editing ${item.category}.`)
+    setIsError(false)
+  }
+
+  function editExpense(item) {
+    setEditingExpenseId(item.id)
+    setExpenseForm({
+      title: item.title,
+      amount: String(item.amount),
+      category: item.category || '',
+      spent_at: item.spent_at?.slice(0, 10) || '',
+    })
+    setMessage(`Editing ${item.title}.`)
+    setIsError(false)
   }
 
   return (
@@ -75,65 +226,130 @@ function BudgetExpenses() {
 
       <div className="page-panel toolbar-panel">
         <label>
-          Event
-          <select value={selectedEventId} onChange={(e) => setSelectedEventId(e.target.value)}>
+          Selected event
+          <select
+            value={selectedEventId}
+            onChange={(event) => {
+              setSelectedEventId(event.target.value)
+              resetBudgetForm()
+              resetExpenseForm()
+            }}
+            disabled={events.length === 0}
+          >
+            {events.length === 0 && <option value="">No organizer events found</option>}
             {events.map((event) => <option key={event.id} value={event.id}>{event.name}</option>)}
           </select>
         </label>
+        {selectedEvent && (
+          <p className="selected-event-summary">
+            Managing budget for <strong>{selectedEvent.name}</strong> · {formatDate(selectedEvent.event_date)}
+          </p>
+        )}
       </div>
 
-      {message && <p className="status-message">{message}</p>}
+      {message && <p className={isError ? 'error-text' : 'status-message'}>{message}</p>}
 
       <section className="stats-grid">
-        <article><span>Planned budget</span><strong>{plannedTotal.toLocaleString()}</strong></article>
-        <article><span>Actual expenses</span><strong>{actualTotal.toLocaleString()}</strong></article>
-        <article><span>Difference</span><strong>{(plannedTotal - actualTotal).toLocaleString()}</strong></article>
+        <article><span>Total planned budget</span><strong>{formatAmount(plannedTotal)}</strong></article>
+        <article><span>Total actual expenses</span><strong>{formatAmount(actualTotal)}</strong></article>
+        <article>
+          <span>{difference >= 0 ? 'Remaining budget' : 'Over budget'}</span>
+          <strong className={difference < 0 ? 'negative-amount' : ''}>{formatAmount(Math.abs(difference))}</strong>
+        </article>
         <article><span>Expense records</span><strong>{expenses.length}</strong></article>
       </section>
 
       <div className="two-column">
         <section className="page-panel">
-          <div className="panel-header"><h2>Budget Breakdown</h2><span>{budgets.length}</span></div>
-          <ul className="list data-list">
-            {budgets.map((item) => (
-              <li key={item.id}>
-                <strong>{item.category}</strong>
-                <span>{Number(item.planned_amount).toLocaleString()} planned · {item.notes || 'No notes'}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="panel-header"><h2>Planned Budget Breakdown</h2><span>{budgets.length}</span></div>
+          {budgets.length === 0 ? (
+            <p className="empty-state">No budget categories have been added for this event.</p>
+          ) : (
+            <ul className="list data-list">
+              {budgets.map((item) => (
+                <li key={item.id}>
+                  <strong>{item.category}</strong>
+                  <span>{formatAmount(item.planned_amount)} planned · {item.notes || 'No notes'}</span>
+                  <button className="secondary-button" type="button" onClick={() => editBudget(item)}>Edit</button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
+
         <section className="page-panel">
-          <div className="panel-header"><h2>Add Budget Row</h2></div>
-          <form className="form compact-form" onSubmit={createBudget}>
-            <input placeholder="Category" value={budgetForm.category} onChange={(e) => setBudgetForm({ ...budgetForm, category: e.target.value })} required />
-            <input type="number" placeholder="Planned amount" value={budgetForm.planned_amount} onChange={(e) => setBudgetForm({ ...budgetForm, planned_amount: e.target.value })} required />
-            <input placeholder="Notes" value={budgetForm.notes} onChange={(e) => setBudgetForm({ ...budgetForm, notes: e.target.value })} />
-            <button type="submit">Add Budget</button>
+          <div className="panel-header"><h2>{editingBudgetId ? 'Edit Budget Category' : 'Add Budget Category'}</h2></div>
+          <form className="form compact-form" onSubmit={saveBudget}>
+            <input
+              list="budget-categories"
+              placeholder="Category, e.g. Catering"
+              value={budgetForm.category}
+              onChange={(event) => setBudgetForm({ ...budgetForm, category: event.target.value })}
+              required
+            />
+            <datalist id="budget-categories">
+              {commonCategories.map((category) => <option key={category} value={category} />)}
+            </datalist>
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="Planned amount"
+              value={budgetForm.planned_amount}
+              onChange={(event) => setBudgetForm({ ...budgetForm, planned_amount: event.target.value })}
+              required
+            />
+            <input placeholder="Notes" value={budgetForm.notes} onChange={(event) => setBudgetForm({ ...budgetForm, notes: event.target.value })} />
+            <button disabled={!selectedEventId} type="submit">{editingBudgetId ? 'Save Budget Changes' : 'Add Budget Category'}</button>
+            {editingBudgetId && <button className="secondary-button" type="button" onClick={resetBudgetForm}>Cancel Edit</button>}
           </form>
         </section>
       </div>
 
       <div className="two-column">
         <section className="page-panel">
-          <div className="panel-header"><h2>Actual Expenses</h2><span>{expenses.length}</span></div>
-          <ul className="list data-list">
-            {expenses.map((item) => (
-              <li key={item.id}>
-                <strong>{item.title}</strong>
-                <span>{Number(item.amount).toLocaleString()} · {item.category || 'Uncategorized'} · {item.spent_at ? new Date(item.spent_at).toLocaleDateString() : 'No date'}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="panel-header"><h2>Actual Expense Records</h2><span>{expenses.length}</span></div>
+          {expenses.length === 0 ? (
+            <p className="empty-state">No actual expenses have been recorded for this event.</p>
+          ) : (
+            <ul className="list data-list">
+              {expenses.map((item) => (
+                <li key={item.id}>
+                  <strong>{item.title}</strong>
+                  <span>{formatAmount(item.amount)} · {item.category || 'Uncategorized'} · {formatDate(item.spent_at)}</span>
+                  <button className="secondary-button" type="button" onClick={() => editExpense(item)}>Edit</button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
+
         <section className="page-panel">
-          <div className="panel-header"><h2>Record Expense</h2></div>
-          <form className="form compact-form" onSubmit={createExpense}>
-            <input placeholder="Expense title" value={expenseForm.title} onChange={(e) => setExpenseForm({ ...expenseForm, title: e.target.value })} required />
-            <input type="number" placeholder="Amount" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })} required />
-            <input placeholder="Category" value={expenseForm.category} onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })} />
-            <input type="date" value={expenseForm.spent_at} onChange={(e) => setExpenseForm({ ...expenseForm, spent_at: e.target.value })} />
-            <button type="submit">Record Expense</button>
+          <div className="panel-header"><h2>{editingExpenseId ? 'Edit Actual Expense' : 'Add Actual Expense'}</h2></div>
+          <form className="form compact-form" onSubmit={saveExpense}>
+            <input placeholder="Expense title" value={expenseForm.title} onChange={(event) => setExpenseForm({ ...expenseForm, title: event.target.value })} required />
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="Amount"
+              value={expenseForm.amount}
+              onChange={(event) => setExpenseForm({ ...expenseForm, amount: event.target.value })}
+              required
+            />
+            <input
+              list="expense-categories"
+              placeholder="Category, e.g. Venue"
+              value={expenseForm.category}
+              onChange={(event) => setExpenseForm({ ...expenseForm, category: event.target.value })}
+            />
+            <datalist id="expense-categories">
+              {[...new Set([...commonCategories, ...budgets.map((item) => item.category)])]
+                .map((category) => <option key={category} value={category} />)}
+            </datalist>
+            <DateSelect value={expenseForm.spent_at} onChange={(date) => setExpenseForm({ ...expenseForm, spent_at: date })} minYear={2024} maxYear={2035} />
+            <button disabled={!selectedEventId} type="submit">{editingExpenseId ? 'Save Expense Changes' : 'Add Expense'}</button>
+            {editingExpenseId && <button className="secondary-button" type="button" onClick={resetExpenseForm}>Cancel Edit</button>}
           </form>
         </section>
       </div>

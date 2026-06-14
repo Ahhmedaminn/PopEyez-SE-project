@@ -36,7 +36,13 @@ router.get("/", async function (req, res) {
 
   try {
     const whereClause = filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : "";
-    const result = await pool.query(`SELECT * FROM events ${whereClause} ORDER BY event_date ASC`, values);
+    const result = await pool.query(
+      `SELECT events.*, events.event_date::text AS event_date
+      FROM events
+      ${whereClause}
+      ORDER BY events.event_date ASC`,
+      values
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching events:", error);
@@ -48,7 +54,10 @@ router.get("/", async function (req, res) {
 
 router.get("/:id", async function (req, res) {
   try {
-    const result = await pool.query("SELECT * FROM events WHERE id = $1", [req.params.id]);
+    const result = await pool.query(
+      "SELECT events.*, events.event_date::text AS event_date FROM events WHERE id = $1",
+      [req.params.id]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -148,6 +157,12 @@ router.put("/:id", async function (req, res) {
     });
   }
 
+  if (!organizer_id) {
+    return res.status(400).json({
+      error: "organizer_id is required",
+    });
+  }
+
   try {
     const result = await pool.query(
       `UPDATE events
@@ -165,6 +180,7 @@ router.put("/:id", async function (req, res) {
         agenda = COALESCE($11, agenda),
         status = COALESCE($12, status)
       WHERE id = $13
+        AND organizer_id = $1
       RETURNING *`,
       [
         organizer_id || null,

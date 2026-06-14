@@ -1,8 +1,15 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState } from 'react'
 import { apiGet, apiPatch, apiPost } from '../api'
+import DateSelect from '../components/DateSelect'
 
 const taskStatuses = ['Not Assigned', 'Pending', 'In Progress', 'Done', 'Overdue']
+
+function getTomorrowDate() {
+  const date = new Date()
+  date.setDate(date.getDate() + 1)
+  return date.toISOString().slice(0, 10)
+}
 
 function EventsTasks({ currentUser }) {
   const [events, setEvents] = useState([])
@@ -25,6 +32,7 @@ function EventsTasks({ currentUser }) {
     due_date: '',
     status: 'Pending',
   })
+  const tomorrowDate = getTomorrowDate()
 
   async function loadData() {
     const eventParams = new URLSearchParams()
@@ -32,13 +40,15 @@ function EventsTasks({ currentUser }) {
 
     if (eventFilters.status) eventParams.set('status', eventFilters.status)
     if (eventFilters.date) eventParams.set('date', eventFilters.date)
+    eventParams.set('organizer_id', currentUser.id)
     if (taskFilters.status) taskParams.set('status', taskFilters.status)
     if (taskFilters.event_id) taskParams.set('event_id', taskFilters.event_id)
+    taskParams.set('organizer_id', currentUser.id)
 
     const [eventsData, tasksData, usersData] = await Promise.all([
       apiGet(`/events${eventParams.toString() ? `?${eventParams}` : ''}`),
       apiGet(`/tasks${taskParams.toString() ? `?${taskParams}` : ''}`),
-      apiGet('/users?role=staff'),
+      apiGet(`/users?role=staff&status=Active&created_by=${currentUser.id}`),
     ])
 
     setEvents(eventsData)
@@ -82,6 +92,11 @@ function EventsTasks({ currentUser }) {
       return
     }
 
+    if (taskForm.due_date && taskForm.due_date < tomorrowDate) {
+      setMessage('Task due date must be tomorrow or later.')
+      return
+    }
+
     try {
       await apiPost('/tasks', {
         event_id: taskForm.event_id,
@@ -101,7 +116,7 @@ function EventsTasks({ currentUser }) {
 
   async function updateTaskStatus(id, status) {
     try {
-      await apiPatch(`/tasks/${id}/status`, { status })
+      await apiPatch(`/tasks/${id}/status`, { status, organizer_id: currentUser.id })
       setMessage('Task status updated.')
       await loadData()
     } catch (err) {
@@ -133,7 +148,7 @@ function EventsTasks({ currentUser }) {
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </select>
-            <input type="date" value={eventFilters.date} onChange={(e) => setEventFilters({ ...eventFilters, date: e.target.value })} />
+            <DateSelect value={eventFilters.date} onChange={(date) => setEventFilters({ ...eventFilters, date })} minYear={2026} maxYear={2035} />
           </div>
           <ul className="list data-list">
             {events.map((item) => (
@@ -151,7 +166,7 @@ function EventsTasks({ currentUser }) {
           </div>
           <form className="form compact-form" onSubmit={createEvent}>
             <input placeholder="Event name" value={eventForm.name} onChange={(e) => setEventForm({ ...eventForm, name: e.target.value })} required />
-            <input type="date" value={eventForm.event_date} onChange={(e) => setEventForm({ ...eventForm, event_date: e.target.value })} required />
+            <DateSelect value={eventForm.event_date} onChange={(date) => setEventForm({ ...eventForm, event_date: date })} minYear={2026} maxYear={2035} required />
             <input placeholder="Event type" value={eventForm.event_type} onChange={(e) => setEventForm({ ...eventForm, event_type: e.target.value })} />
             <input type="number" placeholder="Expected attendees" value={eventForm.expected_attendees} onChange={(e) => setEventForm({ ...eventForm, expected_attendees: e.target.value })} />
             <select value={eventForm.status} onChange={(e) => setEventForm({ ...eventForm, status: e.target.value })}>
@@ -208,7 +223,7 @@ function EventsTasks({ currentUser }) {
               <option value="">Unassigned</option>
               {users.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
             </select>
-            <input type="date" value={taskForm.due_date} onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })} />
+            <DateSelect value={taskForm.due_date} onChange={(date) => setTaskForm({ ...taskForm, due_date: date })} minYear={2026} maxYear={2035} minDate={tomorrowDate} />
             <select value={taskForm.status} onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value })}>
               {taskStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
             </select>

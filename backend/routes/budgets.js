@@ -1,10 +1,15 @@
 const express = require("express");
 const pool = require("../db");
+const { organizerOwnsEvent } = require("../ownership");
 
 const router = express.Router();
 
 function isMissing(value) {
   return value === undefined || value === null || value === "";
+}
+
+function isInvalidAmount(value) {
+  return isMissing(value) || !Number.isFinite(Number(value)) || Number(value) <= 0;
 }
 
 router.get("/", async function (req, res) {
@@ -21,6 +26,10 @@ router.get("/", async function (req, res) {
 
 router.get("/event/:eventId", async function (req, res) {
   try {
+    if (!(await organizerOwnsEvent(pool, req.params.eventId, req.query.organizer_id))) {
+      return res.status(403).json({ error: "You do not have access to this event" });
+    }
+
     const result = await pool.query("SELECT * FROM budgets WHERE event_id = $1 ORDER BY id ASC", [
       req.params.eventId,
     ]);
@@ -34,15 +43,19 @@ router.get("/event/:eventId", async function (req, res) {
 });
 
 router.post("/", async function (req, res) {
-  const { event_id, category, planned_amount, notes } = req.body;
+  const { event_id, category, planned_amount, notes, organizer_id } = req.body;
 
-  if (isMissing(event_id) || isMissing(category) || isMissing(planned_amount)) {
+  if (isMissing(event_id) || isMissing(category) || isInvalidAmount(planned_amount)) {
     return res.status(400).json({
-      error: "event_id, category, and planned_amount are required",
+      error: "event_id and category are required, and planned_amount must be greater than zero",
     });
   }
 
   try {
+    if (!(await organizerOwnsEvent(pool, event_id, organizer_id))) {
+      return res.status(403).json({ error: "You can only budget for your own events" });
+    }
+
     const result = await pool.query(
       `INSERT INTO budgets (event_id, category, planned_amount, notes)
       VALUES ($1, $2, $3, $4)
@@ -60,25 +73,30 @@ router.post("/", async function (req, res) {
 });
 
 router.put("/:id", async function (req, res) {
-  const { event_id, category, planned_amount, notes } = req.body;
+  const { event_id, category, planned_amount, notes, organizer_id } = req.body;
+
+  if (isMissing(event_id) || isMissing(category) || isInvalidAmount(planned_amount)) {
+    return res.status(400).json({
+      error: "event_id and category are required, and planned_amount must be greater than zero",
+    });
+  }
 
   try {
+    if (!(await organizerOwnsEvent(pool, event_id, organizer_id))) {
+      return res.status(403).json({ error: "You can only edit budgets for your own events" });
+    }
+
     const result = await pool.query(
       `UPDATE budgets
       SET
-        event_id = COALESCE($1, event_id),
-        category = COALESCE($2, category),
-        planned_amount = COALESCE($3, planned_amount),
-        notes = COALESCE($4, notes)
+        event_id = $1,
+        category = $2,
+        planned_amount = $3,
+        notes = $4
       WHERE id = $5
+        AND event_id = $1
       RETURNING *`,
-      [
-        event_id || null,
-        category || null,
-        planned_amount === undefined ? null : planned_amount,
-        notes || null,
-        req.params.id,
-      ]
+      [event_id, category, planned_amount, notes || null, req.params.id]
     );
 
     if (result.rows.length === 0) {

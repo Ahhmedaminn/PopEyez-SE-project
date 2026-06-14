@@ -58,8 +58,6 @@ function Login({ onLogin, onShowRegister }) {
       </div>
 
       <form className="form" onSubmit={handleSubmit}>
-        <p className="mvp-note">MVP login: password is checked against the demo database value, not securely authenticated yet.</p>
-
         <label>
           Email
           <input

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { apiPost } from '../api'
 
-const roles = ['organizer', 'staff', 'vendor', 'guest', 'venueOwner']
+const roles = ['organizer', 'venueOwner']
 
 function Register({ onRegister, onShowLogin }) {
   const [formData, setFormData] = useState({
@@ -9,6 +9,17 @@ function Register({ onRegister, onShowLogin }) {
     email: '',
     password: '',
     role: 'organizer',
+    phone: '',
+    age: '',
+    companyName: '',
+    venueName: '',
+    venueDescription: '',
+    venueLocation: '',
+    venueCity: '',
+    venueCapacity: '',
+    venueDimensions: '',
+    venueAmenities: '',
+    venueDailyPrice: '',
   })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -33,11 +44,25 @@ function Register({ onRegister, onShowLogin }) {
         email: formData.email,
         password_hash: formData.password,
         role: formData.role,
+        phone: formData.phone || null,
+        age: formData.age || null,
+        company_name: formData.companyName || null,
         status: 'Active',
       })
 
-      if (createdUser.role !== 'organizer') {
-        setSuccess('Account created. This workspace is currently implemented for Event Organizers only.')
+      if (createdUser.role === 'venueOwner') {
+        await apiPost('/venues', {
+          owner_id: createdUser.id,
+          name: formData.venueName,
+          description: formData.venueDescription || null,
+          location: formData.venueLocation,
+          city: formData.venueCity,
+          capacity: formData.venueCapacity,
+          dimensions_sqm: formData.venueDimensions || null,
+          amenities: formData.venueAmenities || null,
+          daily_price: formData.venueDailyPrice || null,
+        })
+        setSuccess('Venue owner account and first venue created. The venue owner workspace will be added later.')
         return
       }
 
@@ -101,6 +126,35 @@ function Register({ onRegister, onShowLogin }) {
             ))}
           </select>
         </label>
+
+        <label>
+          Phone
+          <input value={formData.phone} onChange={(event) => updateField('phone', event.target.value)} placeholder="+20 100 000 0000" />
+        </label>
+
+        <label>
+          Age
+          <input type="number" min="18" value={formData.age} onChange={(event) => updateField('age', event.target.value)} placeholder="Age" />
+        </label>
+
+        <label>
+          Company name
+          <input value={formData.companyName} onChange={(event) => updateField('companyName', event.target.value)} placeholder="Company or organization" />
+        </label>
+
+        {formData.role === 'venueOwner' && (
+          <fieldset className="form-section">
+            <legend>First Venue Details</legend>
+            <input value={formData.venueName} onChange={(event) => updateField('venueName', event.target.value)} placeholder="Venue name" required />
+            <textarea value={formData.venueDescription} onChange={(event) => updateField('venueDescription', event.target.value)} placeholder="Venue description" />
+            <input value={formData.venueLocation} onChange={(event) => updateField('venueLocation', event.target.value)} placeholder="Full location" required />
+            <input value={formData.venueCity} onChange={(event) => updateField('venueCity', event.target.value)} placeholder="City" required />
+            <input type="number" min="1" value={formData.venueCapacity} onChange={(event) => updateField('venueCapacity', event.target.value)} placeholder="Capacity" required />
+            <input type="number" min="1" value={formData.venueDimensions} onChange={(event) => updateField('venueDimensions', event.target.value)} placeholder="Dimensions in square metres" />
+            <input value={formData.venueAmenities} onChange={(event) => updateField('venueAmenities', event.target.value)} placeholder="Amenities" />
+            <input type="number" min="0" value={formData.venueDailyPrice} onChange={(event) => updateField('venueDailyPrice', event.target.value)} placeholder="Daily price" />
+          </fieldset>
+        )}
 
         <button type="submit" disabled={loading}>
           {loading ? 'Registering...' : 'Register'}

@@ -14,9 +14,19 @@ router.get("/", async function (req, res) {
 });
 
 router.get("/search", async function (req, res) {
-  const { company_name, supplies_offered, main_location } = req.query;
+  const { q, company_name, supplies_offered, main_location } = req.query;
   const filters = ["status = 'Active'"];
   const values = [];
+
+  if (q) {
+    values.push(`%${q}%`);
+    filters.push(`(
+      company_name ILIKE $${values.length}
+      OR supplies_offered ILIKE $${values.length}
+      OR main_location ILIKE $${values.length}
+      OR pricing_list ILIKE $${values.length}
+    )`);
+  }
 
   if (company_name) {
     values.push(`%${company_name}%`);

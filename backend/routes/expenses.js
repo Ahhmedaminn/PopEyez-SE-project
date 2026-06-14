@@ -1,5 +1,6 @@
 const express = require("express");
 const pool = require("../db");
+const { organizerOwnsEvent } = require("../ownership");
 
 const router = express.Router();
 
@@ -7,9 +8,15 @@ function isMissing(value) {
   return value === undefined || value === null || value === "";
 }
 
+function isInvalidAmount(value) {
+  return isMissing(value) || !Number.isFinite(Number(value)) || Number(value) <= 0;
+}
+
 router.get("/", async function (req, res) {
   try {
-    const result = await pool.query("SELECT * FROM expenses ORDER BY spent_at ASC");
+    const result = await pool.query(
+      "SELECT expenses.*, expenses.spent_at::text AS spent_at FROM expenses ORDER BY expenses.spent_at ASC"
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching expenses:", error);
@@ -21,9 +28,17 @@ router.get("/", async function (req, res) {
 
 router.get("/event/:eventId", async function (req, res) {
   try {
-    const result = await pool.query("SELECT * FROM expenses WHERE event_id = $1 ORDER BY spent_at ASC", [
-      req.params.eventId,
-    ]);
+    if (!(await organizerOwnsEvent(pool, req.params.eventId, req.query.organizer_id))) {
+      return res.status(403).json({ error: "You do not have access to this event" });
+    }
+
+    const result = await pool.query(
+      `SELECT expenses.*, expenses.spent_at::text AS spent_at
+      FROM expenses
+      WHERE event_id = $1
+      ORDER BY expenses.spent_at ASC`,
+      [req.params.eventId]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching event expenses:", error);
@@ -34,15 +49,19 @@ router.get("/event/:eventId", async function (req, res) {
 });
 
 router.post("/", async function (req, res) {
-  const { event_id, budget_id, vendor_id, title, category, amount, spent_at, payment_method, notes } = req.body;
+  const { event_id, budget_id, vendor_id, title, category, amount, spent_at, payment_method, notes, organizer_id } = req.body;
 
-  if (isMissing(event_id) || isMissing(title) || isMissing(amount)) {
+  if (isMissing(event_id) || isMissing(title) || isInvalidAmount(amount)) {
     return res.status(400).json({
-      error: "event_id, title, and amount are required",
+      error: "event_id and title are required, and amount must be greater than zero",
     });
   }
 
   try {
+    if (!(await organizerOwnsEvent(pool, event_id, organizer_id))) {
+      return res.status(403).json({ error: "You can only add expenses to your own events" });
+    }
+
     const result = await pool.query(
       `INSERT INTO expenses (
         event_id, budget_id, vendor_id, title, category, amount, spent_at, payment_method, notes
@@ -72,30 +91,41 @@ router.post("/", async function (req, res) {
 });
 
 router.put("/:id", async function (req, res) {
-  const { event_id, budget_id, vendor_id, title, category, amount, spent_at, payment_method, notes } = req.body;
+  const { event_id, budget_id, vendor_id, title, category, amount, spent_at, payment_method, notes, organizer_id } = req.body;
+
+  if (isMissing(event_id) || isMissing(title) || isInvalidAmount(amount)) {
+    return res.status(400).json({
+      error: "event_id and title are required, and amount must be greater than zero",
+    });
+  }
 
   try {
+    if (!(await organizerOwnsEvent(pool, event_id, organizer_id))) {
+      return res.status(403).json({ error: "You can only edit expenses for your own events" });
+    }
+
     const result = await pool.query(
       `UPDATE expenses
       SET
-        event_id = COALESCE($1, event_id),
-        budget_id = COALESCE($2, budget_id),
-        vendor_id = COALESCE($3, vendor_id),
-        title = COALESCE($4, title),
-        category = COALESCE($5, category),
-        amount = COALESCE($6, amount),
-        spent_at = COALESCE($7, spent_at),
-        payment_method = COALESCE($8, payment_method),
-        notes = COALESCE($9, notes)
+        event_id = $1,
+        budget_id = $2,
+        vendor_id = $3,
+        title = $4,
+        category = $5,
+        amount = $6,
+        spent_at = $7,
+        payment_method = $8,
+        notes = $9
       WHERE id = $10
+        AND event_id = $1
       RETURNING *`,
       [
-        event_id || null,
+        event_id,
         budget_id || null,
         vendor_id || null,
-        title || null,
+        title,
         category || null,
-        amount === undefined ? null : amount,
+        amount,
         spent_at || null,
         payment_method || null,
         notes || null,

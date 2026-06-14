@@ -32,6 +32,10 @@ function getEventsFromTasks(tasks) {
   return Array.from(eventsById.values()).sort((a, b) => new Date(a.event_date) - new Date(b.event_date))
 }
 
+function getEventDateValue(value) {
+  return value ? value.slice(0, 10) : ''
+}
+
 function StaffEvents({ currentUser }) {
   const [events, setEvents] = useState([])
   const [dateFilter, setDateFilter] = useState('')
@@ -52,8 +56,12 @@ function StaffEvents({ currentUser }) {
   }, [currentUser.id])
 
   const visibleEvents = dateFilter
-    ? events.filter((event) => event.event_date?.slice(0, 10) === dateFilter)
+    ? events.filter((event) => getEventDateValue(event.event_date) === dateFilter)
     : events
+
+  const eventDateOptions = Array.from(
+    new Map(events.map((event) => [getEventDateValue(event.event_date), event.event_date])).entries()
+  ).filter(([value]) => value)
 
   return (
     <div className="workspace-section">
@@ -66,7 +74,12 @@ function StaffEvents({ currentUser }) {
       <section className="page-panel toolbar-panel">
         <label>
           Event date
-          <input type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} />
+          <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)}>
+            <option value="">All dates</option>
+            {eventDateOptions.map(([value, label]) => (
+              <option key={value} value={value}>{formatDate(label)}</option>
+            ))}
+          </select>
         </label>
       </section>
 

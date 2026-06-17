@@ -135,48 +135,91 @@ router.post("/", async function (req, res) {
   }
 
   try {
-    if (created_by) {
-      if (!["staff", "vendor", "guest"].includes(role)) {
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      if (created_by) {
+        if (!["staff", "vendor", "guest"].includes(role)) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({
+            error: "Organizers can only create staff, vendor, or guest accounts",
+          });
+        }
+
+        const creatorResult = await client.query(
+          "SELECT 1 FROM users WHERE id = $1 AND role = 'organizer' AND status = 'Active'",
+          [created_by]
+        );
+
+        if (creatorResult.rows.length === 0) {
+          await client.query("ROLLBACK");
+          return res.status(403).json({
+            error: "A valid active organizer is required",
+          });
+        }
+      }
+
+      if (role === "vendor" && isMissing(company_name)) {
+        await client.query("ROLLBACK");
         return res.status(400).json({
-          error: "Organizers can only create staff, vendor, or guest accounts",
+          error: "company_name is required for vendor accounts",
         });
       }
 
-      const creatorResult = await pool.query(
-        "SELECT 1 FROM users WHERE id = $1 AND role = 'organizer' AND status = 'Active'",
-        [created_by]
+      const result = await client.query(
+        `INSERT INTO users (
+          full_name, email, password_hash, role, status, phone, age,
+          speciality, employment_type, company_name, created_by
+        )
+        VALUES ($1, $2, $3, $4, COALESCE($5, 'Active'), $6, $7, $8, $9, $10, $11)
+        RETURNING *`,
+        [
+          full_name,
+          email,
+          password_hash || null,
+          role,
+          status || null,
+          phone || null,
+          age || null,
+          speciality || null,
+          employment_type || null,
+          company_name || null,
+          created_by || null,
+        ]
       );
 
-      if (creatorResult.rows.length === 0) {
-        return res.status(403).json({
-          error: "A valid active organizer is required",
-        });
+      const createdUser = result.rows[0];
+
+      if (role === "vendor") {
+        await client.query(
+          `INSERT INTO vendors (
+            user_id, company_name, supplies_offered, main_location,
+            pricing_list, contact_email, contact_phone, status
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, 'Active')
+          ON CONFLICT (user_id) DO NOTHING`,
+          [
+            createdUser.id,
+            String(company_name).trim(),
+            "To be updated by vendor",
+            null,
+            null,
+            email,
+            phone || null,
+          ]
+        );
       }
+
+      await client.query("COMMIT");
+      res.status(201).json(createdUser);
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
-
-    const result = await pool.query(
-      `INSERT INTO users (
-        full_name, email, password_hash, role, status, phone, age,
-        speciality, employment_type, company_name, created_by
-      )
-      VALUES ($1, $2, $3, $4, COALESCE($5, 'Active'), $6, $7, $8, $9, $10, $11)
-      RETURNING *`,
-      [
-        full_name,
-        email,
-        password_hash || null,
-        role,
-        status || null,
-        phone || null,
-        age || null,
-        speciality || null,
-        employment_type || null,
-        company_name || null,
-        created_by || null,
-      ]
-    );
-
-    res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error("Error creating user:", error);
     res.status(500).json({

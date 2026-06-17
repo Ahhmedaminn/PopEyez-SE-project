@@ -16,6 +16,7 @@ import StaffProfile from './pages/StaffProfile'
 import StaffTasks from './pages/StaffTasks'
 import UserManagement from './pages/UserManagement'
 import VendorCoordination from './pages/VendorCoordination'
+import VendorWorkspace from './pages/VendorWorkspace'
 import VenuesBooking from './pages/VenuesBooking'
 
 const storedUserKey = 'popeyezCurrentUser'
@@ -41,13 +42,21 @@ const staffPages = [
   { id: 'staff-operations', label: 'Operations' },
 ]
 
+const vendorPages = [
+  { id: 'dashboard', label: 'Overview' },
+  { id: 'vendor-profile', label: 'Profile' },
+  { id: 'vendor-requests', label: 'Requests' },
+  { id: 'vendor-deliveries', label: 'Deliveries' },
+  { id: 'vendor-invoices', label: 'Invoices' },
+]
+
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     const savedUser = localStorage.getItem(storedUserKey)
     return savedUser ? JSON.parse(savedUser) : null
   })
   const [activePage, setActivePage] = useState(
-    currentUser?.role === 'organizer' || currentUser?.role === 'staff' ? 'dashboard' : 'login'
+    ['organizer', 'staff', 'vendor'].includes(currentUser?.role) ? 'dashboard' : 'login'
   )
 
   function handleLogin(user) {
@@ -102,6 +111,10 @@ function App() {
       }
 
       return <StaffDashboard currentUser={currentUser} />
+    }
+
+    if (currentUser.role === 'vendor') {
+      return <VendorWorkspace currentUser={currentUser} activePage={activePage} />
     }
 
     if (currentUser.role !== 'organizer') {
@@ -178,6 +191,22 @@ function App() {
           ) : currentUser?.role === 'staff' ? (
             <>
               {staffPages.map((page) => (
+                <button
+                  key={page.id}
+                  type="button"
+                  className={`nav-button ${activePage === page.id ? 'active' : ''}`}
+                  onClick={() => setActivePage(page.id)}
+                >
+                  {page.label}
+                </button>
+              ))}
+              <button type="button" className="logout-button" onClick={handleLogout}>
+                Logout
+              </button>
+            </>
+          ) : currentUser?.role === 'vendor' ? (
+            <>
+              {vendorPages.map((page) => (
                 <button
                   key={page.id}
                   type="button"

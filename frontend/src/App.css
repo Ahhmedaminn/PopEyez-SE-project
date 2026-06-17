@@ -218,6 +218,38 @@ main {
   margin: 16px 0 0;
 }
 
+.field-help {
+  color: #64748b;
+  display: block;
+  font-size: 14px;
+  font-weight: 400;
+  margin-top: 6px;
+}
+
+.review-status {
+  border-radius: 6px;
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 700;
+  justify-self: start;
+  padding: 6px 8px;
+}
+
+.good-status {
+  background: #dcfce7;
+  color: #166534 !important;
+}
+
+.warning-status {
+  background: #fef3c7;
+  color: #92400e !important;
+}
+
+.bad-status {
+  background: #fee2e2;
+  color: #991b1b !important;
+}
+
 .error-text {
   color: #b91c1c;
   margin: 16px 0 0;
@@ -399,8 +431,22 @@ main {
   max-width: 220px;
 }
 
+.inline-textarea {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  box-sizing: border-box;
+  color: #111827;
+  font: inherit;
+  margin-top: 6px;
+  min-height: 74px;
+  padding: 10px 12px;
+  resize: vertical;
+  width: 100%;
+}
+
 .vendor-list li,
-.invoice-list li {
+.invoice-list li,
+.vendor-work-list li {
   gap: 7px;
 }
 

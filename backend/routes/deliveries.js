@@ -63,12 +63,50 @@ router.get("/event/:eventId", async function (req, res) {
 
 router.get("/vendor/:vendorId", async function (req, res) {
   try {
-    const result = await pool.query("SELECT * FROM deliveries WHERE vendor_id = $1 ORDER BY scheduled_arrival ASC", [
-      req.params.vendorId,
-    ]);
+    const result = await pool.query(
+      `SELECT
+        deliveries.*,
+        events.name AS event_name,
+        events.event_date::text AS event_date,
+        sourcing_requests.requested_items,
+        sourcing_requests.quantity,
+        sourcing_requests.event_location
+      FROM deliveries
+      JOIN events ON events.id = deliveries.event_id
+      JOIN sourcing_requests ON sourcing_requests.id = deliveries.sourcing_request_id
+      WHERE deliveries.vendor_id = $1
+      ORDER BY deliveries.scheduled_arrival ASC`,
+      [req.params.vendorId]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching vendor deliveries:", error);
+    res.status(500).json({ error: "Failed to fetch vendor deliveries" });
+  }
+});
+
+router.get("/vendor-user/:userId", async function (req, res) {
+  try {
+    const result = await pool.query(
+      `SELECT
+        deliveries.*,
+        events.name AS event_name,
+        events.event_date::text AS event_date,
+        sourcing_requests.requested_items,
+        sourcing_requests.quantity,
+        sourcing_requests.event_location
+      FROM deliveries
+      JOIN vendors ON vendors.id = deliveries.vendor_id
+      JOIN events ON events.id = deliveries.event_id
+      JOIN sourcing_requests ON sourcing_requests.id = deliveries.sourcing_request_id
+      WHERE vendors.user_id = $1
+        AND sourcing_requests.status = 'Accepted'
+      ORDER BY deliveries.scheduled_arrival ASC`,
+      [req.params.userId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching vendor user deliveries:", error);
     res.status(500).json({ error: "Failed to fetch vendor deliveries" });
   }
 });
@@ -118,6 +156,58 @@ router.patch("/:id/status", async function (req, res) {
     res.json(result.rows[0]);
   } catch (error) {
     console.error("Error updating delivery status:", error);
+    res.status(500).json({ error: "Failed to update delivery status" });
+  }
+});
+
+router.patch("/:id/vendor-status", async function (req, res) {
+  const { status, vendor_user_id, confirmation_notes } = req.body;
+
+  if (!allowedStatuses.includes(status)) {
+    return res.status(400).json({ error: "Invalid delivery status" });
+  }
+
+  if (!vendor_user_id) {
+    return res.status(400).json({ error: "vendor_user_id is required" });
+  }
+
+  if (status === "Delayed" && !String(confirmation_notes || "").trim()) {
+    return res.status(400).json({ error: "A delay note is required when marking a delivery as Delayed" });
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE deliveries
+      SET
+        status = $1::varchar,
+        confirmation_notes = COALESCE($2, confirmation_notes),
+        arrived_at = CASE
+          WHEN $1::varchar IN ('Arrived', 'Delivered') THEN COALESCE(arrived_at, CURRENT_TIMESTAMP)
+          ELSE arrived_at
+        END
+      WHERE id = $3
+        AND EXISTS (
+          SELECT 1
+          FROM vendors
+          WHERE vendors.id = deliveries.vendor_id
+            AND vendors.user_id = $4
+        )
+      RETURNING *`,
+      [
+        status,
+        String(confirmation_notes || "").trim() || null,
+        req.params.id,
+        vendor_user_id,
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Delivery not found for this vendor" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error updating vendor delivery status:", error);
     res.status(500).json({ error: "Failed to update delivery status" });
   }
 });

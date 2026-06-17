@@ -53,13 +53,128 @@ router.get("/event/:eventId", async function (req, res) {
 
 router.get("/vendor/:vendorId", async function (req, res) {
   try {
-    const result = await pool.query("SELECT * FROM invoices WHERE vendor_id = $1 ORDER BY created_at DESC", [
-      req.params.vendorId,
-    ]);
+    const result = await pool.query(
+      `SELECT
+        invoices.*,
+        events.name AS event_name,
+        events.event_date::text AS event_date,
+        sourcing_requests.requested_items
+      FROM invoices
+      JOIN events ON events.id = invoices.event_id
+      JOIN sourcing_requests ON sourcing_requests.id = invoices.sourcing_request_id
+      WHERE invoices.vendor_id = $1
+      ORDER BY invoices.created_at DESC`,
+      [req.params.vendorId]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching vendor invoices:", error);
     res.status(500).json({ error: "Failed to fetch vendor invoices" });
+  }
+});
+
+router.get("/vendor-user/:userId", async function (req, res) {
+  try {
+    const result = await pool.query(
+      `SELECT
+        invoices.*,
+        events.name AS event_name,
+        events.event_date::text AS event_date,
+        sourcing_requests.requested_items
+      FROM invoices
+      JOIN vendors ON vendors.id = invoices.vendor_id
+      JOIN events ON events.id = invoices.event_id
+      JOIN sourcing_requests ON sourcing_requests.id = invoices.sourcing_request_id
+      WHERE vendors.user_id = $1
+      ORDER BY invoices.created_at DESC`,
+      [req.params.userId]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching vendor user invoices:", error);
+    res.status(500).json({ error: "Failed to fetch vendor invoices" });
+  }
+});
+
+router.post("/vendor-submit", async function (req, res) {
+  const {
+    vendor_user_id,
+    delivery_id,
+    invoice_number,
+    amount,
+    itemized_breakdown,
+    supporting_document_url,
+  } = req.body;
+
+  if (!vendor_user_id || !delivery_id) {
+    return res.status(400).json({ error: "vendor_user_id and delivery_id are required" });
+  }
+
+  if (!String(invoice_number || "").trim() || !String(itemized_breakdown || "").trim()) {
+    return res.status(400).json({ error: "invoice_number and itemized_breakdown are required" });
+  }
+
+  if (amount === undefined || amount === null || Number(amount) <= 0) {
+    return res.status(400).json({ error: "amount must be greater than 0" });
+  }
+
+  try {
+    const deliveryResult = await pool.query(
+      `SELECT
+        deliveries.id AS delivery_id,
+        deliveries.event_id,
+        deliveries.vendor_id,
+        deliveries.sourcing_request_id,
+        EXISTS (
+          SELECT 1
+          FROM invoices
+          WHERE invoices.delivery_id = deliveries.id
+        ) AS has_invoice
+      FROM deliveries
+      JOIN vendors ON vendors.id = deliveries.vendor_id
+      JOIN sourcing_requests ON sourcing_requests.id = deliveries.sourcing_request_id
+      WHERE deliveries.id = $1
+        AND vendors.user_id = $2
+        AND sourcing_requests.status = 'Accepted'
+        AND deliveries.status IN ('Delivered', 'Arrived')`,
+      [delivery_id, vendor_user_id]
+    );
+
+    if (deliveryResult.rows.length === 0) {
+      return res.status(400).json({
+        error: "Invoice can only be submitted for your own arrived or delivered accepted delivery",
+      });
+    }
+
+    const delivery = deliveryResult.rows[0];
+
+    if (delivery.has_invoice) {
+      return res.status(400).json({ error: "This delivery already has an invoice" });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO invoices (
+        delivery_id, sourcing_request_id, event_id, vendor_id, invoice_number,
+        amount, status, itemized_breakdown, supporting_document_url, submitted_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, 'Pending Review', $7, $8, CURRENT_TIMESTAMP)
+      RETURNING *`,
+      [
+        delivery.delivery_id,
+        delivery.sourcing_request_id,
+        delivery.event_id,
+        delivery.vendor_id,
+        String(invoice_number).trim(),
+        amount,
+        String(itemized_breakdown).trim(),
+        supporting_document_url ? String(supporting_document_url).trim() : null,
+      ]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error("Error submitting vendor invoice:", error);
+    res.status(500).json({ error: "Failed to submit invoice" });
   }
 });
 
@@ -73,8 +188,8 @@ router.patch("/:id/status", async function (req, res) {
   try {
     const result = await pool.query(
       `UPDATE invoices
-      SET status = $1,
-          reviewed_at = CASE WHEN $1 IN ('Approved', 'Rejected') THEN CURRENT_TIMESTAMP ELSE reviewed_at END
+      SET status = $1::varchar,
+          reviewed_at = CASE WHEN $1::varchar IN ('Approved', 'Rejected') THEN CURRENT_TIMESTAMP ELSE reviewed_at END
       WHERE id = $2
         AND EXISTS (
           SELECT 1 FROM events

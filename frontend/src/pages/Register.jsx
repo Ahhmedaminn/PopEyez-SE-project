@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { apiPost } from '../api'
+import { apiPost, apiPut } from '../api'
 
-const roles = ['organizer', 'venueOwner']
+const roles = ['organizer', 'vendor', 'venueOwner']
 
 function Register({ onRegister, onShowLogin }) {
   const [formData, setFormData] = useState({
@@ -12,6 +12,9 @@ function Register({ onRegister, onShowLogin }) {
     phone: '',
     age: '',
     companyName: '',
+    suppliesOffered: '',
+    mainLocation: '',
+    pricingList: '',
     venueName: '',
     venueDescription: '',
     venueLocation: '',
@@ -49,6 +52,19 @@ function Register({ onRegister, onShowLogin }) {
         company_name: formData.companyName || null,
         status: 'Active',
       })
+
+      if (createdUser.role === 'vendor') {
+        await apiPut(`/vendors/by-user/${createdUser.id}`, {
+          company_name: formData.companyName,
+          supplies_offered: formData.suppliesOffered,
+          main_location: formData.mainLocation || null,
+          pricing_list: formData.pricingList || null,
+          contact_email: formData.email,
+          contact_phone: formData.phone || null,
+        })
+        onRegister(createdUser)
+        return
+      }
 
       if (createdUser.role === 'venueOwner') {
         await apiPost('/venues', {
@@ -139,8 +155,22 @@ function Register({ onRegister, onShowLogin }) {
 
         <label>
           Company name
-          <input value={formData.companyName} onChange={(event) => updateField('companyName', event.target.value)} placeholder="Company or organization" />
+          <input
+            value={formData.companyName}
+            onChange={(event) => updateField('companyName', event.target.value)}
+            placeholder="Company or organization"
+            required={formData.role === 'vendor'}
+          />
         </label>
+
+        {formData.role === 'vendor' && (
+          <fieldset className="form-section">
+            <legend>Vendor Profile</legend>
+            <input value={formData.suppliesOffered} onChange={(event) => updateField('suppliesOffered', event.target.value)} placeholder="Supplies offered" required />
+            <input value={formData.mainLocation} onChange={(event) => updateField('mainLocation', event.target.value)} placeholder="Main location" required />
+            <input value={formData.pricingList} onChange={(event) => updateField('pricingList', event.target.value)} placeholder="Pricing list" required />
+          </fieldset>
+        )}
 
         {formData.role === 'venueOwner' && (
           <fieldset className="form-section">

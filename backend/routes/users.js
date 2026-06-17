@@ -281,28 +281,22 @@ router.put("/:id", async function (req, res) {
         full_name = COALESCE($1, full_name),
         email = COALESCE($2, email),
         password_hash = COALESCE($3, password_hash),
-        role = role,
-        status = status,
-        phone = COALESCE($6, phone),
-        age = COALESCE($7, age),
-        speciality = COALESCE($8, speciality),
-        employment_type = COALESCE($9, employment_type),
-        company_name = COALESCE($10, company_name),
-        created_by = created_by
-      WHERE id = $12
+        phone = COALESCE($4, phone),
+        age = COALESCE($5, age),
+        speciality = COALESCE($6, speciality),
+        employment_type = COALESCE($7, employment_type),
+        company_name = COALESCE($8, company_name)
+      WHERE id = $9
       RETURNING *`,
       [
         full_name || null,
         email || null,
         password_hash || null,
-        null,
-        null,
         phone || null,
         age || null,
         speciality || null,
         employment_type || null,
         company_name || null,
-        null,
         req.params.id,
       ]
     );

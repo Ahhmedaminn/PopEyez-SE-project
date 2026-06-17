@@ -78,7 +78,7 @@ function Register({ onRegister, onShowLogin }) {
           amenities: formData.venueAmenities || null,
           daily_price: formData.venueDailyPrice || null,
         })
-        setSuccess('Venue owner account and first venue created. The venue owner workspace will be added later.')
+        onRegister(createdUser)
         return
       }
 
@@ -145,7 +145,12 @@ function Register({ onRegister, onShowLogin }) {
 
         <label>
           Phone
-          <input value={formData.phone} onChange={(event) => updateField('phone', event.target.value)} placeholder="+20 100 000 0000" />
+          <input
+            value={formData.phone}
+            onChange={(event) => updateField('phone', event.target.value)}
+            placeholder="+20 100 000 0000"
+            required={formData.role === 'venueOwner'}
+          />
         </label>
 
         <label>
@@ -159,7 +164,7 @@ function Register({ onRegister, onShowLogin }) {
             value={formData.companyName}
             onChange={(event) => updateField('companyName', event.target.value)}
             placeholder="Company or organization"
-            required={formData.role === 'vendor'}
+            required={formData.role === 'vendor' || formData.role === 'venueOwner'}
           />
         </label>
 

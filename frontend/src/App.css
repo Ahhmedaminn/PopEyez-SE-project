@@ -35,10 +35,10 @@
 
 .topbar nav {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
   justify-content: flex-end;
-  max-width: 760px;
+  max-width: 900px;
 }
 
 button {
@@ -66,9 +66,11 @@ button:disabled {
   color: #334155;
   display: inline-flex;
   justify-content: center;
-  min-height: 44px;
-  min-width: 118px;
-  padding: 10px 16px;
+  font-size: 15px;
+  height: 46px;
+  min-width: 122px;
+  padding: 0 14px;
+  white-space: nowrap;
 }
 
 .topbar nav .nav-button.active,
@@ -81,8 +83,8 @@ button:disabled {
   background: #ffffff;
   border-color: #cbd5e1;
   color: #475569;
-  margin-left: 12px;
-  min-width: 96px;
+  margin-left: 22px;
+  min-width: 104px;
 }
 
 .topbar nav .logout-button:hover {
@@ -342,6 +344,7 @@ main {
 }
 
 .filter-row {
+  align-items: flex-end;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -350,7 +353,26 @@ main {
 
 .filter-row input,
 .filter-row select {
+  box-sizing: border-box;
+  height: 48px;
   min-width: 150px;
+}
+
+.filter-row > button {
+  height: 48px;
+  padding: 0 18px;
+}
+
+.filter-date-label {
+  color: #334155;
+  display: grid;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 4px;
+}
+
+.filter-date-label input {
+  min-width: 190px;
 }
 
 .date-select {
@@ -550,6 +572,30 @@ main {
   max-height: none;
 }
 
+.venue-photo-preview,
+.venue-photo-placeholder {
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  box-sizing: border-box;
+  max-width: 420px;
+  width: 100%;
+}
+
+.venue-photo-preview {
+  border: 1px solid #cbd5e1;
+  object-fit: cover;
+}
+
+.venue-photo-placeholder {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  color: #64748b;
+  display: flex;
+  font-weight: 700;
+  justify-content: center;
+}
+
 .availability-button {
   margin-top: 8px !important;
 }
@@ -612,6 +658,10 @@ button.calendar-nav {
   background: #dc2626;
 }
 
+.legend-swatch.unset {
+  background: #94a3b8;
+}
+
 .calendar-grid {
   display: grid;
   gap: 6px;
@@ -655,6 +705,34 @@ button.calendar-day.unavailable {
   opacity: 1;
 }
 
+button.calendar-day.unset {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  opacity: 1;
+}
+
+button.calendar-day.selected {
+  box-shadow: 0 0 0 3px #2563eb;
+}
+
+.listing-calendar-editor,
+.availability-edit-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.owner-availability-calendar button.calendar-day.unavailable:hover {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.owner-availability-calendar button.calendar-day.unset:hover {
+  background: #475569;
+  color: #ffffff;
+}
+
 .list span,
 .empty-state {
   color: #64748b;
@@ -681,6 +759,20 @@ button.calendar-day.unavailable {
     align-items: flex-start;
     flex-direction: column;
     padding: 16px;
+  }
+
+  .topbar nav {
+    justify-content: flex-start;
+    max-width: 100%;
+  }
+
+  .topbar nav .nav-button,
+  .topbar nav .logout-button {
+    min-width: 112px;
+  }
+
+  .topbar nav .logout-button {
+    margin-left: 0;
   }
 
   main {

@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState } from 'react'
-import { apiGet, apiPost } from '../api'
+import { apiGet, apiPatch, apiPost } from '../api'
 import DateSelect from '../components/DateSelect'
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -16,6 +16,16 @@ function getDateValue(value) {
 function getDefaultMonth(availability) {
   const firstDate = availability.map((item) => getDateValue(item.available_date)).sort()[0]
   return firstDate ? firstDate.slice(0, 7) : '2026-06'
+}
+
+function parseCounterProposalAmount(value) {
+  const match = String(value || '').replace(/,/g, '').match(/(\d+(?:\.\d{1,2})?)/)
+  return match ? Number(match[1]) : null
+}
+
+function formatMoney(value) {
+  if (value === null || value === undefined || value === '') return 'Not provided'
+  return `${Number(value).toLocaleString()} EGP`
 }
 
 function AvailabilityCalendar({ availability, month, onMonthChange, onSelectDate }) {
@@ -90,6 +100,8 @@ function VenuesBooking({ currentUser }) {
     venue_id: '',
     requested_date: '',
     expected_attendees: '',
+    special_requirements: '',
+    proposed_price: '',
   })
 
   async function loadData() {
@@ -136,13 +148,28 @@ function VenuesBooking({ currentUser }) {
         organizer_id: currentUser.id,
         requested_date: form.requested_date,
         expected_attendees: form.expected_attendees || null,
+        special_requirements: form.special_requirements || null,
+        proposed_price: form.proposed_price || null,
         status: 'Pending',
       })
-      setForm({ event_id: '', venue_id: '', requested_date: '', expected_attendees: '' })
+      setForm({ event_id: '', venue_id: '', requested_date: '', expected_attendees: '', special_requirements: '', proposed_price: '' })
       setMessage('Booking request submitted.')
       await loadData()
     } catch (err) {
       setMessage(err.message || 'Could not submit booking request.')
+    }
+  }
+
+  async function respondToCounter(requestId, response) {
+    try {
+      await apiPatch(`/booking-requests/${requestId}/organizer-counter-response`, {
+        organizer_id: currentUser.id,
+        response,
+      })
+      setMessage(response === 'Accepted' ? 'Counter-proposal accepted. Booking approved.' : 'Counter-proposal declined.')
+      await loadData()
+    } catch (err) {
+      setMessage(err.message || 'Could not respond to counter-proposal.')
     }
   }
 
@@ -289,6 +316,13 @@ function VenuesBooking({ currentUser }) {
               <p className="selected-date">Choose a venue to see its booking calendar.</p>
             )}
             <input type="number" placeholder="Expected attendees" value={form.expected_attendees} onChange={(e) => setForm({ ...form, expected_attendees: e.target.value })} />
+            <input type="number" min="0" placeholder="Proposed price" value={form.proposed_price} onChange={(e) => setForm({ ...form, proposed_price: e.target.value })} />
+            <textarea
+              className="inline-textarea"
+              placeholder="Special requirements for the venue owner"
+              value={form.special_requirements}
+              onChange={(e) => setForm({ ...form, special_requirements: e.target.value })}
+            />
             <button disabled={!form.event_id || !form.venue_id || !form.requested_date} type="submit">
               Submit Booking Request
             </button>
@@ -305,6 +339,33 @@ function VenuesBooking({ currentUser }) {
                 <span>
                   {new Date(`${request.requested_date.slice(0, 10)}T00:00:00`).toLocaleDateString()} · {request.status}
                 </span>
+                <span><b>Expected attendees:</b> {request.expected_attendees || 'Not provided'}</span>
+                <span><b>Proposed price:</b> {formatMoney(request.proposed_price)}</span>
+                {request.status === 'Approved' && request.counter_proposal && (
+                  <span><b>Agreed price:</b> {formatMoney(parseCounterProposalAmount(request.counter_proposal) || request.proposed_price)}</span>
+                )}
+                <span><b>Special requirements:</b> {request.special_requirements || 'None provided.'}</span>
+                {request.counter_proposal && request.status === 'Counter Proposal' && (
+                  <span className="review-status warning-status">
+                    Venue owner counter-proposal: {request.counter_proposal}
+                  </span>
+                )}
+                {request.counter_proposal && request.status === 'Approved' && (
+                  <span className="review-status good-status">
+                    Counter-proposal accepted: {request.counter_proposal}
+                  </span>
+                )}
+                {request.counter_proposal && request.status === 'Declined' && (
+                  <span className="review-status bad-status">
+                    Counter-proposal declined: {request.counter_proposal}
+                  </span>
+                )}
+                {request.status === 'Counter Proposal' && (
+                  <div className="inline-actions">
+                    <button type="button" onClick={() => respondToCounter(request.id, 'Accepted')}>Accept Counter</button>
+                    <button className="danger-button" type="button" onClick={() => respondToCounter(request.id, 'Declined')}>Decline Counter</button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

@@ -68,4 +68,25 @@ export async function apiPatch(path, body) {
   return response.json()
 }
 
+export async function apiDelete(path, body) {
+  const options = {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  }
+
+  if (body !== undefined) {
+    options.body = JSON.stringify(body)
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, options)
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response))
+  }
+
+  return response.json()
+}
+
 export { API_BASE_URL }

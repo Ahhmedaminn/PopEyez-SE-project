@@ -43,9 +43,39 @@ async function requireEventAccess(pool, eventId, organizerId, staffId) {
   return false;
 }
 
+async function venueOwnerOwnsVenue(pool, venueId, ownerId) {
+  if (!isValidId(venueId) || !isValidId(ownerId)) {
+    return false;
+  }
+
+  const result = await pool.query(
+    "SELECT 1 FROM venues WHERE id = $1 AND owner_id = $2",
+    [venueId, ownerId]
+  );
+  return result.rows.length > 0;
+}
+
+async function venueOwnerOwnsBookingRequest(pool, requestId, ownerId) {
+  if (!isValidId(requestId) || !isValidId(ownerId)) {
+    return false;
+  }
+
+  const result = await pool.query(
+    `SELECT 1
+    FROM booking_requests
+    JOIN venues ON venues.id = booking_requests.venue_id
+    WHERE booking_requests.id = $1
+      AND venues.owner_id = $2`,
+    [requestId, ownerId]
+  );
+  return result.rows.length > 0;
+}
+
 module.exports = {
   isValidId,
   organizerOwnsEvent,
   staffWorksOnEvent,
   requireEventAccess,
+  venueOwnerOwnsVenue,
+  venueOwnerOwnsBookingRequest,
 };

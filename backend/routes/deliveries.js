@@ -51,9 +51,22 @@ router.get("/event/:eventId", async function (req, res) {
       return res.status(403).json({ error: "You do not have access to this event" });
     }
 
-    const result = await pool.query("SELECT * FROM deliveries WHERE event_id = $1 ORDER BY scheduled_arrival ASC", [
-      req.params.eventId,
-    ]);
+    const result = await pool.query(
+      `SELECT
+        deliveries.*,
+        events.name AS event_name,
+        vendors.company_name AS vendor_name,
+        sourcing_requests.requested_items,
+        sourcing_requests.quantity,
+        sourcing_requests.event_location
+      FROM deliveries
+      JOIN events ON events.id = deliveries.event_id
+      JOIN vendors ON vendors.id = deliveries.vendor_id
+      JOIN sourcing_requests ON sourcing_requests.id = deliveries.sourcing_request_id
+      WHERE deliveries.event_id = $1
+      ORDER BY deliveries.scheduled_arrival ASC`,
+      [req.params.eventId]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching event deliveries:", error);

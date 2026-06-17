@@ -5,9 +5,14 @@ function formatDate(value) {
   return value ? new Date(value).toLocaleDateString() : 'No date'
 }
 
+function formatDateTime(value) {
+  return value ? new Date(value).toLocaleString() : 'not set'
+}
+
 function StaffOperations({ currentUser }) {
   const [events, setEvents] = useState([])
   const [selectedEventId, setSelectedEventId] = useState('')
+  const [checkinStatusFilter, setCheckinStatusFilter] = useState('')
   const [checkins, setCheckins] = useState([])
   const [deliveries, setDeliveries] = useState([])
   const [messages, setMessages] = useState([])
@@ -103,6 +108,9 @@ function StaffOperations({ currentUser }) {
   }
 
   const arrivedGuests = checkins.filter((checkin) => checkin.status === 'Arrived').length
+  const visibleCheckins = checkinStatusFilter
+    ? checkins.filter((checkin) => checkin.status === checkinStatusFilter)
+    : checkins
 
   return (
     <div className="workspace-section">
@@ -113,22 +121,32 @@ function StaffOperations({ currentUser }) {
       </div>
 
       <section className="page-panel toolbar-panel">
-        <label>
-          Event
-          <select value={selectedEventId} onChange={(event) => changeSelectedEvent(event.target.value)}>
-            {events.map((event) => (
-              <option key={event.id} value={event.id}>
-                {event.name} - {formatDate(event.event_date)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="filter-row">
+          <label>
+            Event
+            <select value={selectedEventId} onChange={(event) => changeSelectedEvent(event.target.value)}>
+              {events.map((event) => (
+                <option key={event.id} value={event.id}>
+                  {event.name} - {formatDate(event.event_date)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Check-in status
+            <select value={checkinStatusFilter} onChange={(event) => setCheckinStatusFilter(event.target.value)}>
+              <option value="">All guests</option>
+              <option value="Not Arrived">Not Arrived</option>
+              <option value="Arrived">Arrived</option>
+            </select>
+          </label>
+        </div>
       </section>
 
       {message && <p className={message.toLowerCase().includes('could not') ? 'error-text' : 'status-message'}>{message}</p>}
 
       <section className="stats-grid">
-        <article><span>Total check-ins</span><strong>{checkins.length}</strong></article>
+        <article><span>Total guests</span><strong>{checkins.length}</strong></article>
         <article><span>Arrived guests</span><strong>{arrivedGuests}</strong></article>
         <article><span>Vendor deliveries</span><strong>{deliveries.length}</strong></article>
         <article><span>Live messages</span><strong>{messages.length}</strong></article>
@@ -138,16 +156,17 @@ function StaffOperations({ currentUser }) {
         <section className="page-panel">
           <div className="panel-header">
             <h2>Guest Check-ins</h2>
-            <span>{checkins.length}</span>
+            <span>{visibleCheckins.length}</span>
           </div>
-          {checkins.length === 0 ? (
-            <p className="empty-state">No check-ins for this event.</p>
+          {visibleCheckins.length === 0 ? (
+            <p className="empty-state">No guests match this check-in filter.</p>
           ) : (
             <ul className="list data-list">
-              {checkins.map((checkin) => (
+              {visibleCheckins.map((checkin) => (
                 <li key={checkin.id}>
-                  <strong>Guest #{checkin.guest_id}</strong>
-                  <span>{checkin.status}</span>
+                  <strong>{checkin.guest_name || `Guest #${checkin.guest_id}`}</strong>
+                  <span>{checkin.status} - {checkin.guest_email || 'No email'} - {checkin.guest_phone || 'No phone'}</span>
+                  <span>Dietary: {checkin.dietary_preferences || 'None'} - Requirements: {checkin.special_requirements || 'None'}</span>
                   <select value={checkin.status} onChange={(event) => updateCheckin(checkin.id, event.target.value)}>
                     <option value="Not Arrived">Not Arrived</option>
                     <option value="Arrived">Arrived</option>
@@ -169,8 +188,10 @@ function StaffOperations({ currentUser }) {
             <ul className="list data-list">
               {deliveries.map((delivery) => (
                 <li key={delivery.id}>
-                  <strong>Delivery #{delivery.id}</strong>
-                  <span>{delivery.status} - scheduled {delivery.scheduled_arrival ? new Date(delivery.scheduled_arrival).toLocaleString() : 'not set'}</span>
+                  <strong>{delivery.vendor_name || `Vendor #${delivery.vendor_id}`}</strong>
+                  <span>{delivery.event_name || 'Event'} - {delivery.status}</span>
+                  <span>{delivery.requested_items || 'No requested items'} - {delivery.quantity || 'No quantity'}</span>
+                  <span>{delivery.event_location || 'No delivery location'} - scheduled {formatDateTime(delivery.scheduled_arrival)}</span>
                   <button type="button" disabled={delivery.status === 'Arrived'} onClick={() => markDeliveryArrived(delivery.id)}>
                     Mark Arrived
                   </button>

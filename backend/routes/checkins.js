@@ -31,9 +31,20 @@ router.get("/event/:eventId", async function (req, res) {
       return res.status(403).json({ error: "You do not have access to this event" });
     }
 
-    const result = await pool.query("SELECT * FROM checkins WHERE event_id = $1 ORDER BY id ASC", [
-      req.params.eventId,
-    ]);
+    const result = await pool.query(
+      `SELECT
+        checkins.*,
+        guests.full_name AS guest_name,
+        guests.email AS guest_email,
+        guests.phone AS guest_phone,
+        guests.dietary_preferences,
+        guests.special_requirements
+      FROM checkins
+      JOIN guests ON guests.id = checkins.guest_id
+      WHERE checkins.event_id = $1
+      ORDER BY guests.full_name ASC`,
+      [req.params.eventId]
+    );
     res.json(result.rows);
   } catch (error) {
     console.error("Error fetching event check-ins:", error);

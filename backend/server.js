@@ -24,6 +24,7 @@ const invitationsRoutes = require("./routes/invitations");
 const rsvpsRoutes = require("./routes/rsvps");
 const messagesRoutes = require("./routes/messages");
 const checkinsRoutes = require("./routes/checkins");
+const guestWorkspaceRoutes = require("./routes/guestWorkspace");
 
 const app = express();
 
@@ -71,9 +72,19 @@ app.use("/api/invitations", invitationsRoutes);
 app.use("/api/rsvps", rsvpsRoutes);
 app.use("/api/messages", messagesRoutes);
 app.use("/api/checkins", checkinsRoutes);
+app.use("/api/guest-workspace", guestWorkspaceRoutes);
 
 const PORT = process.env.PORT || 5050;
+const HOST = process.env.HOST || "127.0.0.1";
 
-app.listen(PORT, function () {
-  console.log("Server running on http://localhost:" + PORT);
+const server = app.listen(PORT, HOST, function () {
+  console.log("Server running on http://" + HOST + ":" + PORT);
+});
+
+server.on("error", function (error) {
+  console.error("Server startup error:", error);
+});
+
+server.on("close", function () {
+  console.log("Server closed");
 });

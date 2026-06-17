@@ -36,8 +36,8 @@ function Login({ onLogin, onShowRegister }) {
         return
       }
 
-      if (!['organizer', 'staff', 'vendor'].includes(user.role)) {
-        setError('This workspace is currently implemented for Event Organizers, Staff, and Vendors only.')
+      if (!['organizer', 'staff', 'vendor', 'guest'].includes(user.role)) {
+        setError('This workspace is currently implemented for Event Organizers, Staff, Vendors, and Guests only.')
         return
       }
 

@@ -3,6 +3,7 @@ import './App.css'
 import BudgetExpenses from './pages/BudgetExpenses'
 import EventsTasks from './pages/EventsTasks'
 import GuestManagement from './pages/GuestManagement'
+import GuestWorkspace from './pages/GuestWorkspace'
 import Login from './pages/Login'
 import OperationsReports from './pages/OperationsReports'
 import OrganizerDashboard from './pages/OrganizerDashboard'
@@ -50,19 +51,30 @@ const vendorPages = [
   { id: 'vendor-invoices', label: 'Invoices' },
 ]
 
+const guestPages = [
+  { id: 'guest-dashboard', label: 'Dashboard' },
+  { id: 'guest-invitations', label: 'Invitations' },
+  { id: 'guest-rsvp', label: 'RSVP' },
+  { id: 'guest-messages', label: 'Messages' },
+  { id: 'guest-checkin', label: 'Check-In' },
+  { id: 'guest-feedback', label: 'Feedback' },
+]
+
 function App() {
   const [currentUser, setCurrentUser] = useState(() => {
     const savedUser = localStorage.getItem(storedUserKey)
     return savedUser ? JSON.parse(savedUser) : null
   })
   const [activePage, setActivePage] = useState(
-    ['organizer', 'staff', 'vendor'].includes(currentUser?.role) ? 'dashboard' : 'login'
+    currentUser?.role === 'guest'
+      ? 'guest-dashboard'
+      : ['organizer', 'staff', 'vendor'].includes(currentUser?.role) ? 'dashboard' : 'login'
   )
 
   function handleLogin(user) {
     setCurrentUser(user)
     localStorage.setItem(storedUserKey, JSON.stringify(user))
-    setActivePage('dashboard')
+    setActivePage(user.role === 'guest' ? 'guest-dashboard' : 'dashboard')
   }
 
   function handleLogout() {
@@ -117,12 +129,16 @@ function App() {
       return <VendorWorkspace currentUser={currentUser} activePage={activePage} />
     }
 
+    if (currentUser.role === 'guest') {
+      return <GuestWorkspace currentUser={currentUser} activePage={activePage} />
+    }
+
     if (currentUser.role !== 'organizer') {
       return (
         <section className="page-panel notice-panel">
           <p className="eyebrow">Role unavailable</p>
           <h1>Workspace Unavailable</h1>
-          <p>This frontend workspace is currently implemented for Event Organizers and Staff only.</p>
+          <p>This frontend workspace is currently implemented for Event Organizers, Staff, Vendors, and Guests only.</p>
           <button type="button" onClick={handleLogout}>Return to Login</button>
         </section>
       )
@@ -207,6 +223,22 @@ function App() {
           ) : currentUser?.role === 'vendor' ? (
             <>
               {vendorPages.map((page) => (
+                <button
+                  key={page.id}
+                  type="button"
+                  className={`nav-button ${activePage === page.id ? 'active' : ''}`}
+                  onClick={() => setActivePage(page.id)}
+                >
+                  {page.label}
+                </button>
+              ))}
+              <button type="button" className="logout-button" onClick={handleLogout}>
+                Logout
+              </button>
+            </>
+          ) : currentUser?.role === 'guest' ? (
+            <>
+              {guestPages.map((page) => (
                 <button
                   key={page.id}
                   type="button"

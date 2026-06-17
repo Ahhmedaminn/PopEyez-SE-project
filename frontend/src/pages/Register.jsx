@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { apiPost, apiPut } from '../api'
 
-const roles = ['organizer', 'vendor', 'venueOwner']
+const roles = ['organizer', 'vendor', 'guest', 'venueOwner']
 
 function Register({ onRegister, onShowLogin }) {
   const [formData, setFormData] = useState({

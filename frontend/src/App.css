@@ -471,6 +471,53 @@ main {
   margin: 0;
 }
 
+.guest-summary-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.guest-invitation-list {
+  max-height: none;
+}
+
+.guest-invitation-list li {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  gap: 14px;
+  padding: 16px;
+}
+
+.guest-invitation-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.guest-invitation-header div {
+  display: grid;
+  gap: 4px;
+}
+
+.guest-event-details {
+  display: grid;
+  gap: 5px;
+}
+
+.guest-rsvp-form {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 14px;
+}
+
+.guest-rsvp-form button {
+  justify-self: start;
+}
+
+.cancelled-invitation {
+  background: #fff7f7;
+}
+
 .danger-button {
   background: #b91c1c;
 }
@@ -655,6 +702,10 @@ button.calendar-day.unavailable {
   button.calendar-nav {
     font-size: 12px;
     padding: 7px 5px;
+  }
+
+  .guest-invitation-header {
+    display: grid;
   }
 
 }

@@ -5,3 +5,14 @@ node_modules/
 backend/node_modules/
 frontend/node_modules/
 backend/outbox/
+backend/uploads/*
+!backend/uploads/.gitkeep
+!backend/uploads/invoices/
+!backend/uploads/invoices/.gitkeep
+!backend/uploads/venues/
+backend/uploads/venues/*
+!backend/uploads/venues/.gitkeep
+!backend/uploads/venues/photos/
+!backend/uploads/venues/photos/.gitkeep
+!backend/uploads/venues/floorplans/
+!backend/uploads/venues/floorplans/.gitkeep

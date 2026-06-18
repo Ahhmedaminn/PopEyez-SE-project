@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { apiGet, apiPatch, apiPost, apiPut } from '../api'
+import { API_BASE_URL, apiGet, apiPatch, apiPostForm, apiPut } from '../api'
 
 const emptyProfile = {
   company_name: '',
@@ -15,10 +15,10 @@ const emptyInvoice = {
   invoice_number: '',
   amount: '',
   itemized_breakdown: '',
-  supporting_document_url: '',
+  supporting_document_file: null,
 }
 
-const deliveryStatuses = ['Preparing', 'Out for Delivery', 'Delivered', 'Delayed', 'Arrived']
+const deliveryStatuses = ['Preparing', 'Out for Delivery', 'Delivered', 'Delayed']
 
 function formatDate(value) {
   if (!value) return 'Not scheduled'
@@ -42,6 +42,13 @@ function getInvoiceStatusMessage(status) {
   if (status === 'Paid') return 'Marked as paid by organizer.'
   if (status === 'Rejected') return 'Reviewed and rejected by organizer.'
   return 'Waiting for organizer review.'
+}
+
+function getDocumentHref(url) {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, '')
+  return `${apiOrigin}${url.startsWith('/') ? url : `/${url}`}`
 }
 
 function VendorWorkspace({ currentUser, activePage = 'dashboard' }) {
@@ -111,7 +118,7 @@ function VendorWorkspace({ currentUser, activePage = 'dashboard' }) {
   const summary = useMemo(() => ({
     pendingRequests: requests.filter((request) => request.status === 'Pending').length,
     acceptedRequests: requests.filter((request) => request.status === 'Accepted').length,
-    activeDeliveries: deliveries.filter((delivery) => !['Delivered', 'Arrived'].includes(delivery.status)).length,
+    activeDeliveries: deliveries.filter((delivery) => delivery.status !== 'Delivered').length,
     delayedDeliveries: deliveries.filter((delivery) => delivery.status === 'Delayed').length,
     submittedInvoices: invoices.length,
     pendingInvoices: invoices.filter((invoice) => invoice.status === 'Pending Review').length,
@@ -206,7 +213,7 @@ function VendorWorkspace({ currentUser, activePage = 'dashboard' }) {
     event.preventDefault()
 
     if (invoiceableDeliveries.length === 0) {
-      showError('No deliveries are ready for a new invoice. Mark one of your uninvoiced deliveries as Arrived or Delivered first.')
+      showError('No deliveries are ready for a new invoice. Mark one of your uninvoiced deliveries as Delivered first.')
       return
     }
 
@@ -221,14 +228,17 @@ function VendorWorkspace({ currentUser, activePage = 'dashboard' }) {
     }
 
     try {
-      await apiPost('/invoices/vendor-submit', {
-        vendor_user_id: currentUser.id,
-        delivery_id: invoiceForm.delivery_id,
-        invoice_number: invoiceForm.invoice_number.trim(),
-        amount: invoiceForm.amount,
-        itemized_breakdown: invoiceForm.itemized_breakdown.trim(),
-        supporting_document_url: invoiceForm.supporting_document_url.trim() || null,
-      })
+      const formData = new FormData()
+      formData.append('vendor_user_id', currentUser.id)
+      formData.append('delivery_id', invoiceForm.delivery_id)
+      formData.append('invoice_number', invoiceForm.invoice_number.trim())
+      formData.append('amount', invoiceForm.amount)
+      formData.append('itemized_breakdown', invoiceForm.itemized_breakdown.trim())
+      if (invoiceForm.supporting_document_file) {
+        formData.append('supporting_document', invoiceForm.supporting_document_file)
+      }
+
+      await apiPostForm('/invoices/vendor-submit', formData)
       setInvoiceForm(emptyInvoice)
       await loadData()
       showSuccess('Invoice submitted for organizer review.')
@@ -242,10 +252,41 @@ function VendorWorkspace({ currentUser, activePage = 'dashboard' }) {
       .filter((invoice) => invoice.delivery_id)
       .map((invoice) => String(invoice.delivery_id))
   )
+  const invoiceByDeliveryId = new Map(
+    invoices
+      .filter((invoice) => invoice.delivery_id)
+      .map((invoice) => [String(invoice.delivery_id), invoice])
+  )
   const invoiceableDeliveries = deliveries.filter((delivery) => (
-    ['Delivered', 'Arrived'].includes(delivery.status)
+    delivery.status === 'Delivered'
     && !invoicedDeliveryIds.has(String(delivery.id))
   ))
+  const invoiceNotifications = invoices.filter((invoice) => (
+    ['Approved', 'Paid', 'Rejected'].includes(invoice.status)
+  ))
+
+  function getInvoiceReadiness(delivery) {
+    const existingInvoice = invoiceByDeliveryId.get(String(delivery.id))
+
+    if (existingInvoice) {
+      return {
+        className: existingInvoice.status === 'Rejected' ? 'bad-status' : 'good-status',
+        text: `Already invoiced: ${existingInvoice.invoice_number || `Invoice #${existingInvoice.id}`} (${existingInvoice.status})`,
+      }
+    }
+
+    if (delivery.status !== 'Delivered') {
+      return {
+        className: delivery.status === 'Delayed' ? 'bad-status' : 'warning-status',
+        text: `Not ready: delivery is ${delivery.status}`,
+      }
+    }
+
+    return {
+      className: 'warning-status',
+      text: 'Ready for a new invoice',
+    }
+  }
   const pageTitles = {
     dashboard: {
       eyebrow: 'Vendor overview',
@@ -404,17 +445,16 @@ function VendorWorkspace({ currentUser, activePage = 'dashboard' }) {
                   <span><b>Quantity:</b> {delivery.quantity || 'Not specified'}</span>
                   <span><b>Location:</b> {delivery.event_location || 'Not provided'}</span>
                   <span><b>Scheduled:</b> {formatDate(delivery.scheduled_arrival)}</span>
-                  <span><b>Arrived:</b> {delivery.arrived_at ? formatDate(delivery.arrived_at) : 'Not confirmed'}</span>
-                  {['Arrived', 'Delivered'].includes(delivery.status) && (
-                    <span className="review-status good-status">Arrival or delivery confirmed.</span>
+                  <span><b>Delivered:</b> {delivery.arrived_at ? formatDate(delivery.arrived_at) : 'Not confirmed'}</span>
+                  {delivery.status === 'Delivered' && (
+                    <span className="review-status good-status">Delivery confirmed.</span>
                   )}
-                  {delivery.status === 'Delayed' && (
-                    <span className="review-status warning-status">Delay reported to organizer as an MVP status/note update.</span>
+                  {delivery.status === 'Delayed' && delivery.confirmation_notes && (
+                    <span><b>Delay reason:</b> {delivery.confirmation_notes}</span>
                   )}
-                  <span><b>Organizer-visible note:</b> {delivery.confirmation_notes || 'No delivery notes yet.'}</span>
                   <textarea
                     className="inline-textarea"
-                    placeholder="Delay, schedule change, or confirmation note"
+                    placeholder={delivery.status === 'Delayed' ? 'Delay reason for organizer' : 'Schedule change or confirmation note'}
                     value={deliveryNotes[delivery.id] || ''}
                     onChange={(event) => setDeliveryNotes({ ...deliveryNotes, [delivery.id]: event.target.value })}
                   />
@@ -431,6 +471,30 @@ function VendorWorkspace({ currentUser, activePage = 'dashboard' }) {
       {activePage === 'vendor-invoices' && (
         <>
         <section className="page-panel">
+          <div className="panel-header"><h2>Invoice Notifications</h2><span>{invoiceNotifications.length}</span></div>
+          {invoiceNotifications.length === 0 ? (
+            <p className="empty-state">Reviewed or approved invoice notifications will appear here.</p>
+          ) : (
+            <ul className="list data-list invoice-list">
+              {invoiceNotifications.map((invoice) => (
+                <li key={invoice.id}>
+                  <strong>{invoice.invoice_number || `Invoice #${invoice.id}`}</strong>
+                  <span className={`review-status ${invoice.status === 'Rejected' ? 'bad-status' : 'good-status'}`}>
+                    {invoice.status === 'Paid'
+                      ? 'Payment notification: invoice marked as paid.'
+                      : invoice.status === 'Approved'
+                        ? 'Review notification: invoice approved.'
+                        : 'Review notification: invoice rejected.'}
+                  </span>
+                  <span>{invoice.event_name} · {formatMoney(invoice.amount)}</span>
+                  <span><b>Reviewed:</b> {invoice.reviewed_at ? formatDate(invoice.reviewed_at) : 'Review time not recorded'}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="page-panel">
           <div className="panel-header"><h2>Submit Invoice</h2></div>
           <form className="form compact-form" onSubmit={submitInvoice}>
             <label>
@@ -441,13 +505,13 @@ function VendorWorkspace({ currentUser, activePage = 'dashboard' }) {
                 disabled={invoiceableDeliveries.length === 0}
                 required={invoiceableDeliveries.length > 0}
               >
-                <option value="">Choose arrived or delivered delivery</option>
+                <option value="">Choose delivered delivery</option>
                 {invoiceableDeliveries.map((delivery) => (
                   <option key={delivery.id} value={delivery.id}>{delivery.event_name} · {delivery.requested_items} · {formatDateOnly(delivery.event_date)}</option>
                 ))}
               </select>
               {invoiceableDeliveries.length === 0 && (
-                <span className="field-help">No deliveries are ready for a new invoice. Only your arrived or delivered deliveries without an existing invoice appear here.</span>
+                <span className="field-help">No deliveries are ready for a new invoice. A delivery must be Delivered and must not already have an invoice.</span>
               )}
             </label>
             <label>
@@ -463,11 +527,38 @@ function VendorWorkspace({ currentUser, activePage = 'dashboard' }) {
               <textarea value={invoiceForm.itemized_breakdown} onChange={(event) => setInvoiceForm({ ...invoiceForm, itemized_breakdown: event.target.value })} required />
             </label>
             <label>
-              Supporting document link or reference
-              <input value={invoiceForm.supporting_document_url} onChange={(event) => setInvoiceForm({ ...invoiceForm, supporting_document_url: event.target.value })} />
+              Supporting document
+              <input
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                onChange={(event) => setInvoiceForm({ ...invoiceForm, supporting_document_file: event.target.files?.[0] || null })}
+              />
+              <span className="field-help">Optional PDF, PNG, JPG, or JPEG. Maximum size: 5MB.</span>
             </label>
             <button type="submit" disabled={invoiceableDeliveries.length === 0}>Submit Invoice</button>
           </form>
+        </section>
+
+        <section className="page-panel">
+          <div className="panel-header"><h2>Delivery Invoice Readiness</h2><span>{deliveries.length}</span></div>
+          {deliveries.length === 0 ? (
+            <p className="empty-state">Accepted deliveries will appear here.</p>
+          ) : (
+            <ul className="list data-list">
+              {deliveries.map((delivery) => {
+                const readiness = getInvoiceReadiness(delivery)
+
+                return (
+                  <li key={delivery.id}>
+                    <strong>{delivery.event_name} · {delivery.requested_items}</strong>
+                    <span><b>Delivery status:</b> {delivery.status}</span>
+                    <span><b>Event date:</b> {formatDateOnly(delivery.event_date)}</span>
+                    <span className={`review-status ${readiness.className}`}>{readiness.text}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </section>
 
       <section className="page-panel">
@@ -489,7 +580,9 @@ function VendorWorkspace({ currentUser, activePage = 'dashboard' }) {
                 <span><b>Submitted:</b> {invoice.submitted_at ? formatDate(invoice.submitted_at) : 'Not submitted'}</span>
                 <span><b>Reviewed:</b> {invoice.reviewed_at ? formatDate(invoice.reviewed_at) : 'Not reviewed yet'}</span>
                 {invoice.supporting_document_url?.startsWith('http') ? (
-                  <a href={invoice.supporting_document_url} target="_blank" rel="noreferrer">View supporting document</a>
+                  <a href={getDocumentHref(invoice.supporting_document_url)} target="_blank" rel="noreferrer">View supporting document</a>
+                ) : invoice.supporting_document_url?.startsWith('/uploads/') ? (
+                  <a href={getDocumentHref(invoice.supporting_document_url)} target="_blank" rel="noreferrer">View supporting document</a>
                 ) : invoice.supporting_document_url ? (
                   <span><b>Document reference:</b> {invoice.supporting_document_url}</span>
                 ) : (

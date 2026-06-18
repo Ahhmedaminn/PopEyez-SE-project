@@ -3,7 +3,7 @@ const pool = require("../db");
 const { requireEventAccess } = require("../ownership");
 
 const router = express.Router();
-const allowedStatuses = ["Preparing", "Out for Delivery", "Delivered", "Delayed", "Arrived"];
+const allowedStatuses = ["Preparing", "Out for Delivery", "Delivered", "Delayed"];
 
 router.get("/", async function (req, res) {
   const { organizer_id } = req.query;
@@ -131,8 +131,8 @@ router.patch("/:id/status", async function (req, res) {
     return res.status(400).json({ error: "Invalid delivery status" });
   }
 
-  if (staff_id && status !== "Arrived") {
-    return res.status(400).json({ error: "Staff can only mark a delivery as Arrived" });
+  if (staff_id && status !== "Delivered") {
+    return res.status(400).json({ error: "Staff can only mark a delivery as Delivered" });
   }
 
   try {
@@ -155,7 +155,7 @@ router.patch("/:id/status", async function (req, res) {
     const result = await pool.query(
       `UPDATE deliveries
       SET status = $1::varchar,
-          arrived_at = CASE WHEN $1::varchar = 'Arrived' THEN CURRENT_TIMESTAMP ELSE arrived_at END
+          arrived_at = CASE WHEN $1::varchar = 'Delivered' THEN CURRENT_TIMESTAMP ELSE arrived_at END
       WHERE id = $2
         AND ${accessClause}
       RETURNING *`,
@@ -195,7 +195,7 @@ router.patch("/:id/vendor-status", async function (req, res) {
         status = $1::varchar,
         confirmation_notes = COALESCE($2, confirmation_notes),
         arrived_at = CASE
-          WHEN $1::varchar IN ('Arrived', 'Delivered') THEN COALESCE(arrived_at, CURRENT_TIMESTAMP)
+          WHEN $1::varchar = 'Delivered' THEN COALESCE(arrived_at, CURRENT_TIMESTAMP)
           ELSE arrived_at
         END
       WHERE id = $3

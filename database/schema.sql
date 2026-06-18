@@ -175,7 +175,7 @@ CREATE TABLE deliveries (
     sourcing_request_id INTEGER NOT NULL REFERENCES sourcing_requests(id) ON DELETE CASCADE,
     event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     vendor_id INTEGER NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
-    status VARCHAR(30) NOT NULL DEFAULT 'Preparing' CHECK (status IN ('Preparing', 'Out for Delivery', 'Delivered', 'Delayed','Arrived')),
+    status VARCHAR(30) NOT NULL DEFAULT 'Preparing' CHECK (status IN ('Preparing', 'Out for Delivery', 'Delivered', 'Delayed')),
     scheduled_arrival TIMESTAMP,
     arrived_at TIMESTAMP,
     confirmation_notes TEXT,

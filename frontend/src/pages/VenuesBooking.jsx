@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState } from 'react'
-import { apiGet, apiPatch, apiPost } from '../api'
+import { API_BASE_URL, apiGet, apiPatch, apiPost } from '../api'
 import DateSelect from '../components/DateSelect'
 
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -26,6 +26,13 @@ function parseCounterProposalAmount(value) {
 function formatMoney(value) {
   if (value === null || value === undefined || value === '') return 'Not provided'
   return `${Number(value).toLocaleString()} EGP`
+}
+
+function getDocumentHref(url) {
+  if (!url) return ''
+  if (/^https?:\/\//i.test(url)) return url
+  const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, '')
+  return `${apiOrigin}${url.startsWith('/') ? url : `/${url}`}`
 }
 
 function AvailabilityCalendar({ availability, month, onMonthChange, onSelectDate }) {
@@ -250,11 +257,23 @@ function VenuesBooking({ currentUser }) {
           <ul className="list data-list venue-list">
             {venues.map((venue) => (
               <li key={venue.id}>
+                {venue.photo_url && (
+                  <img
+                    alt={`${venue.name} preview`}
+                    className="venue-photo-preview"
+                    src={getDocumentHref(venue.photo_url)}
+                  />
+                )}
                 <strong>{venue.name}</strong>
                 <span>
                   {venue.city} · Capacity {venue.capacity} · {Number(venue.price_override || venue.daily_price || 0).toLocaleString()} daily
                 </span>
                 <span>{venue.location} · {venue.amenities || 'No amenities listed'}</span>
+                {venue.floor_plan_url && (
+                  <span>
+                    <b>Floor plan:</b> <a href={getDocumentHref(venue.floor_plan_url)} rel="noreferrer" target="_blank">Open floor plan</a>
+                  </span>
+                )}
                 {filters.date && (
                   <span className="available-result">
                     Available on {new Date(`${filters.date}T00:00:00`).toLocaleDateString()}

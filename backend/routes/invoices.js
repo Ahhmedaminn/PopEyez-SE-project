@@ -1,8 +1,68 @@
 const express = require("express");
+const fs = require("fs");
+const multer = require("multer");
+const path = require("path");
 const pool = require("../db");
 
 const router = express.Router();
 const allowedStatuses = ["Pending Review", "Approved", "Paid", "Rejected"];
+const invoiceUploadDir = path.join(__dirname, "..", "uploads", "invoices");
+const allowedDocumentTypes = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+]);
+
+fs.mkdirSync(invoiceUploadDir, { recursive: true });
+
+const invoiceDocumentUpload = multer({
+  storage: multer.diskStorage({
+    destination: function (_req, _file, callback) {
+      callback(null, invoiceUploadDir);
+    },
+    filename: function (_req, file, callback) {
+      const extension = path.extname(file.originalname).toLowerCase();
+      const safeBaseName = path.basename(file.originalname, extension)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 48) || "invoice-document";
+      callback(null, `${Date.now()}-${safeBaseName}${extension}`);
+    },
+  }),
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: function (_req, file, callback) {
+    if (!allowedDocumentTypes.has(file.mimetype)) {
+      callback(new Error("Only PDF, PNG, JPG, or JPEG invoice documents are allowed"));
+      return;
+    }
+
+    callback(null, true);
+  },
+});
+
+function removeUploadedFile(file) {
+  if (!file?.path) return;
+  fs.promises.unlink(file.path).catch(() => {});
+}
+
+function handleInvoiceUpload(req, res, next) {
+  invoiceDocumentUpload.single("supporting_document")(req, res, function (error) {
+    if (!error) {
+      next();
+      return;
+    }
+
+    if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+      res.status(400).json({ error: "Supporting document must be 5MB or smaller" });
+      return;
+    }
+
+    res.status(400).json({ error: error.message || "Invalid supporting document upload" });
+  });
+}
 
 router.get("/", async function (req, res) {
   const { organizer_id } = req.query;
@@ -96,7 +156,7 @@ router.get("/vendor-user/:userId", async function (req, res) {
   }
 });
 
-router.post("/vendor-submit", async function (req, res) {
+router.post("/vendor-submit", handleInvoiceUpload, async function (req, res) {
   const {
     vendor_user_id,
     delivery_id,
@@ -107,14 +167,17 @@ router.post("/vendor-submit", async function (req, res) {
   } = req.body;
 
   if (!vendor_user_id || !delivery_id) {
+    removeUploadedFile(req.file);
     return res.status(400).json({ error: "vendor_user_id and delivery_id are required" });
   }
 
   if (!String(invoice_number || "").trim() || !String(itemized_breakdown || "").trim()) {
+    removeUploadedFile(req.file);
     return res.status(400).json({ error: "invoice_number and itemized_breakdown are required" });
   }
 
   if (amount === undefined || amount === null || Number(amount) <= 0) {
+    removeUploadedFile(req.file);
     return res.status(400).json({ error: "amount must be greater than 0" });
   }
 
@@ -136,22 +199,25 @@ router.post("/vendor-submit", async function (req, res) {
       WHERE deliveries.id = $1
         AND vendors.user_id = $2
         AND sourcing_requests.status = 'Accepted'
-        AND deliveries.status IN ('Delivered', 'Arrived')`,
+        AND deliveries.status = 'Delivered'`,
       [delivery_id, vendor_user_id]
     );
 
     if (deliveryResult.rows.length === 0) {
+      removeUploadedFile(req.file);
       return res.status(400).json({
-        error: "Invoice can only be submitted for your own arrived or delivered accepted delivery",
+        error: "Invoice can only be submitted for your own delivered accepted delivery",
       });
     }
 
     const delivery = deliveryResult.rows[0];
 
     if (delivery.has_invoice) {
+      removeUploadedFile(req.file);
       return res.status(400).json({ error: "This delivery already has an invoice" });
     }
 
+    const uploadedDocumentUrl = req.file ? `/uploads/invoices/${req.file.filename}` : null;
     const result = await pool.query(
       `INSERT INTO invoices (
         delivery_id, sourcing_request_id, event_id, vendor_id, invoice_number,
@@ -167,12 +233,13 @@ router.post("/vendor-submit", async function (req, res) {
         String(invoice_number).trim(),
         amount,
         String(itemized_breakdown).trim(),
-        supporting_document_url ? String(supporting_document_url).trim() : null,
+        uploadedDocumentUrl || (supporting_document_url ? String(supporting_document_url).trim() : null),
       ]
     );
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    removeUploadedFile(req.file);
     console.error("Error submitting vendor invoice:", error);
     res.status(500).json({ error: "Failed to submit invoice" });
   }
@@ -189,7 +256,10 @@ router.patch("/:id/status", async function (req, res) {
     const result = await pool.query(
       `UPDATE invoices
       SET status = $1::varchar,
-          reviewed_at = CASE WHEN $1::varchar IN ('Approved', 'Rejected') THEN CURRENT_TIMESTAMP ELSE reviewed_at END
+          reviewed_at = CASE
+            WHEN $1::varchar IN ('Approved', 'Paid', 'Rejected') THEN CURRENT_TIMESTAMP
+            ELSE reviewed_at
+          END
       WHERE id = $2
         AND EXISTS (
           SELECT 1 FROM events

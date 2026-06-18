@@ -95,12 +95,12 @@ function StaffOperations({ currentUser }) {
     }
   }
 
-  async function markDeliveryArrived(id) {
+  async function markDeliveryDelivered(id) {
     setMessage('')
 
     try {
-      await apiPatch(`/deliveries/${id}/status`, { status: 'Arrived', staff_id: currentUser.id })
-      setMessage('Vendor delivery marked as arrived.')
+      await apiPatch(`/deliveries/${id}/status`, { status: 'Delivered', staff_id: currentUser.id })
+      setMessage('Vendor delivery marked as delivered.')
       await loadEventOperations(selectedEventId)
     } catch (err) {
       setMessage(err.message || 'Could not update delivery status.')
@@ -192,8 +192,8 @@ function StaffOperations({ currentUser }) {
                   <span>{delivery.event_name || 'Event'} - {delivery.status}</span>
                   <span>{delivery.requested_items || 'No requested items'} - {delivery.quantity || 'No quantity'}</span>
                   <span>{delivery.event_location || 'No delivery location'} - scheduled {formatDateTime(delivery.scheduled_arrival)}</span>
-                  <button type="button" disabled={delivery.status === 'Arrived'} onClick={() => markDeliveryArrived(delivery.id)}>
-                    Mark Arrived
+                  <button type="button" disabled={delivery.status === 'Delivered'} onClick={() => markDeliveryDelivered(delivery.id)}>
+                    Mark Delivered
                   </button>
                 </li>
               ))}

@@ -36,6 +36,32 @@ export async function apiPost(path, body) {
   return response.json()
 }
 
+export async function apiPostForm(path, formData) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response))
+  }
+
+  return response.json()
+}
+
+export async function apiPutForm(path, formData) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'PUT',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    throw new Error(await getErrorMessage(response))
+  }
+
+  return response.json()
+}
+
 export async function apiPut(path, body) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'PUT',

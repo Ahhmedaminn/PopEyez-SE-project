@@ -1,9 +1,99 @@
 const express = require("express");
+const fs = require("fs");
+const multer = require("multer");
+const path = require("path");
 const pool = require("../db");
 const { venueOwnerOwnsVenue } = require("../ownership");
 
 const router = express.Router();
 const allowedStatuses = ["Active", "Inactive"];
+const venueUploadRoot = path.join(__dirname, "..", "uploads", "venues");
+const venuePhotoUploadDir = path.join(venueUploadRoot, "photos");
+const venueFloorPlanUploadDir = path.join(venueUploadRoot, "floorplans");
+const allowedPhotoTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const allowedFloorPlanTypes = new Set(["application/pdf", "image/jpeg", "image/png"]);
+
+fs.mkdirSync(venuePhotoUploadDir, { recursive: true });
+fs.mkdirSync(venueFloorPlanUploadDir, { recursive: true });
+
+function safeFileName(originalName, fallbackName) {
+  const extension = path.extname(originalName).toLowerCase();
+  const safeBaseName = path.basename(originalName, extension)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 48) || fallbackName;
+  return `${Date.now()}-${safeBaseName}${extension}`;
+}
+
+const venueUpload = multer({
+  storage: multer.diskStorage({
+    destination: function (_req, file, callback) {
+      if (file.fieldname === "venue_photo") {
+        callback(null, venuePhotoUploadDir);
+        return;
+      }
+
+      if (file.fieldname === "floor_plan") {
+        callback(null, venueFloorPlanUploadDir);
+        return;
+      }
+
+      callback(new Error("Invalid venue upload field"));
+    },
+    filename: function (_req, file, callback) {
+      callback(null, safeFileName(file.originalname, file.fieldname === "venue_photo" ? "venue-photo" : "floor-plan"));
+    },
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+  fileFilter: function (_req, file, callback) {
+    if (file.fieldname === "venue_photo" && !allowedPhotoTypes.has(file.mimetype)) {
+      callback(new Error("Venue photo must be JPG, JPEG, PNG, or WEBP"));
+      return;
+    }
+
+    if (file.fieldname === "floor_plan" && !allowedFloorPlanTypes.has(file.mimetype)) {
+      callback(new Error("Floor plan must be PDF, JPG, JPEG, or PNG"));
+      return;
+    }
+
+    callback(null, true);
+  },
+});
+
+function removeUploadedVenueFiles(files) {
+  Object.values(files || {}).flat().forEach((file) => {
+    if (file?.path) fs.promises.unlink(file.path).catch(() => {});
+  });
+}
+
+function handleVenueUpload(req, res, next) {
+  venueUpload.fields([
+    { name: "venue_photo", maxCount: 1 },
+    { name: "floor_plan", maxCount: 1 },
+  ])(req, res, function (error) {
+    if (!error) {
+      next();
+      return;
+    }
+
+    if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+      res.status(400).json({ error: "Venue uploads must be 10MB or smaller" });
+      return;
+    }
+
+    res.status(400).json({ error: error.message || "Invalid venue upload" });
+  });
+}
+
+function getUploadedVenuePath(req, fieldName) {
+  const file = req.files?.[fieldName]?.[0];
+  if (!file) return null;
+  const folder = fieldName === "venue_photo" ? "photos" : "floorplans";
+  return `/uploads/venues/${folder}/${file.filename}`;
+}
 
 function isMissing(value) {
   return value === undefined || value === null || value === "";
@@ -106,7 +196,7 @@ router.get("/:id", async function (req, res) {
   }
 });
 
-router.post("/", async function (req, res) {
+router.post("/", handleVenueUpload, async function (req, res) {
   const {
     owner_id,
     name,
@@ -128,6 +218,7 @@ router.post("/", async function (req, res) {
     || isMissing(city)
     || isMissing(capacity)
   ) {
+    removeUploadedVenueFiles(req.files);
     return res.status(400).json({
       error: "owner_id, name, location, city, and capacity are required",
     });
@@ -151,19 +242,20 @@ router.post("/", async function (req, res) {
         dimensions_sqm || null,
         amenities || null,
         daily_price || null,
-        photo_url || null,
-        floor_plan_url || null,
+        getUploadedVenuePath(req, "venue_photo") || photo_url || null,
+        getUploadedVenuePath(req, "floor_plan") || floor_plan_url || null,
       ]
     );
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
+    removeUploadedVenueFiles(req.files);
     console.error("Error creating venue:", error);
     res.status(500).json({ error: "Failed to create venue" });
   }
 });
 
-router.put("/:id", async function (req, res) {
+router.put("/:id", handleVenueUpload, async function (req, res) {
   const {
     owner_id,
     name,
@@ -179,6 +271,7 @@ router.put("/:id", async function (req, res) {
   } = req.body;
 
   if (isMissing(owner_id)) {
+    removeUploadedVenueFiles(req.files);
     return res.status(400).json({ error: "owner_id is required" });
   }
 
@@ -188,6 +281,7 @@ router.put("/:id", async function (req, res) {
     || isMissing(city)
     || isMissing(capacity)
   ) {
+    removeUploadedVenueFiles(req.files);
     return res.status(400).json({
       error: "name, location, city, and capacity are required",
     });
@@ -195,8 +289,21 @@ router.put("/:id", async function (req, res) {
 
   try {
     if (!(await venueOwnerOwnsVenue(pool, req.params.id, owner_id))) {
+      removeUploadedVenueFiles(req.files);
       return res.status(403).json({ error: "You can only update your own venue listings" });
     }
+
+    const existingResult = await pool.query(
+      "SELECT photo_url, floor_plan_url FROM venues WHERE id = $1 AND owner_id = $2",
+      [req.params.id, owner_id]
+    );
+
+    if (existingResult.rows.length === 0) {
+      removeUploadedVenueFiles(req.files);
+      return res.status(404).json({ error: "Venue not found" });
+    }
+
+    const existingVenue = existingResult.rows[0];
 
     const result = await pool.query(
       `UPDATE venues
@@ -223,8 +330,8 @@ router.put("/:id", async function (req, res) {
         dimensions_sqm || null,
         amenities || null,
         daily_price || null,
-        photo_url || null,
-        floor_plan_url || null,
+        getUploadedVenuePath(req, "venue_photo") || photo_url || existingVenue.photo_url || null,
+        getUploadedVenuePath(req, "floor_plan") || floor_plan_url || existingVenue.floor_plan_url || null,
         req.params.id,
         owner_id,
       ]
@@ -236,6 +343,7 @@ router.put("/:id", async function (req, res) {
 
     res.json(result.rows[0]);
   } catch (error) {
+    removeUploadedVenueFiles(req.files);
     console.error("Error updating venue:", error);
     res.status(500).json({ error: "Failed to update venue" });
   }

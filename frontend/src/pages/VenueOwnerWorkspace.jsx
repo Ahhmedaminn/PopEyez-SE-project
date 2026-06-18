@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '../api'
+import { API_BASE_URL, apiDelete, apiGet, apiPatch, apiPost, apiPostForm, apiPut, apiPutForm } from '../api'
 
 const emptyVenue = {
   name: '',
@@ -12,6 +12,8 @@ const emptyVenue = {
   daily_price: '',
   photo_url: '',
   floor_plan_url: '',
+  photo_file: null,
+  floor_plan_file: null,
 }
 
 const emptyAvailability = {
@@ -50,6 +52,13 @@ function formatDate(value) {
 function formatMoney(value) {
   if (value === null || value === undefined || value === '') return 'No price set'
   return `${Number(value).toLocaleString()} EGP`
+}
+
+function getDocumentHref(url) {
+  if (!url) return ''
+  if (/^https?:\/\//i.test(url)) return url
+  const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, '')
+  return `${apiOrigin}${url.startsWith('/') ? url : `/${url}`}`
 }
 
 function parseCounterProposalAmount(value) {
@@ -175,10 +184,12 @@ function getStatusClass(status) {
 }
 
 function VenuePhotoPreview({ src, name }) {
+  const href = getDocumentHref(src)
+
   if (!src) {
     return (
       <div className="venue-photo-placeholder">
-        No photo link
+        No venue photo
       </div>
     )
   }
@@ -187,7 +198,7 @@ function VenuePhotoPreview({ src, name }) {
     <img
       alt={`${name || 'Venue'} preview`}
       className="venue-photo-preview"
-      src={src}
+      src={href}
       onError={(event) => {
         event.currentTarget.style.display = 'none'
       }}
@@ -472,6 +483,8 @@ function VenueOwnerWorkspace({ currentUser, activePage = 'dashboard', onUserUpda
       daily_price: venue.daily_price || '',
       photo_url: venue.photo_url || '',
       floor_plan_url: venue.floor_plan_url || '',
+      photo_file: null,
+      floor_plan_file: null,
     })
   }
 
@@ -488,26 +501,33 @@ function VenueOwnerWorkspace({ currentUser, activePage = 'dashboard', onUserUpda
       return
     }
 
-    const body = {
-      owner_id: currentUser.id,
-      name: venueForm.name.trim(),
-      description: venueForm.description.trim() || null,
-      location: venueForm.location.trim(),
-      city: venueForm.city.trim(),
-      capacity: venueForm.capacity,
-      dimensions_sqm: venueForm.dimensions_sqm || null,
-      amenities: venueForm.amenities.trim() || null,
-      daily_price: venueForm.daily_price || null,
-      photo_url: venueForm.photo_url.trim() || null,
-      floor_plan_url: venueForm.floor_plan_url.trim() || null,
+    const formData = new FormData()
+    formData.append('owner_id', currentUser.id)
+    formData.append('name', venueForm.name.trim())
+    formData.append('description', venueForm.description.trim())
+    formData.append('location', venueForm.location.trim())
+    formData.append('city', venueForm.city.trim())
+    formData.append('capacity', venueForm.capacity)
+    formData.append('dimensions_sqm', venueForm.dimensions_sqm || '')
+    formData.append('amenities', venueForm.amenities.trim())
+    formData.append('daily_price', venueForm.daily_price || '')
+    formData.append('photo_url', venueForm.photo_url || '')
+    formData.append('floor_plan_url', venueForm.floor_plan_url || '')
+
+    if (venueForm.photo_file) {
+      formData.append('venue_photo', venueForm.photo_file)
+    }
+
+    if (venueForm.floor_plan_file) {
+      formData.append('floor_plan', venueForm.floor_plan_file)
     }
 
     try {
       if (editingVenueId) {
-        await apiPut(`/venues/${editingVenueId}`, body)
+        await apiPutForm(`/venues/${editingVenueId}`, formData)
         showSuccess('Venue listing updated.')
       } else {
-        await apiPost('/venues', body)
+        await apiPostForm('/venues', formData)
         showSuccess('Venue listing created.')
       }
       resetVenueForm()
@@ -752,10 +772,36 @@ function VenueOwnerWorkspace({ currentUser, activePage = 'dashboard', onUserUpda
                 <label>Capacity<input type="number" min="1" value={venueForm.capacity} onChange={(event) => setVenueForm({ ...venueForm, capacity: event.target.value })} required /></label>
                 <label>Dimensions in square meters<input type="number" min="1" value={venueForm.dimensions_sqm} onChange={(event) => setVenueForm({ ...venueForm, dimensions_sqm: event.target.value })} /></label>
                 <label>Daily price<input type="number" min="0" value={venueForm.daily_price} onChange={(event) => setVenueForm({ ...venueForm, daily_price: event.target.value })} /></label>
-                <label>Photo URL / image link<input value={venueForm.photo_url} onChange={(event) => setVenueForm({ ...venueForm, photo_url: event.target.value })} /></label>
-                <label>Floor plan URL<input value={venueForm.floor_plan_url} onChange={(event) => setVenueForm({ ...venueForm, floor_plan_url: event.target.value })} /></label>
+                <label>
+                  Venue photo
+                  <input
+                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                    onChange={(event) => setVenueForm({ ...venueForm, photo_file: event.target.files?.[0] || null })}
+                    type="file"
+                  />
+                  <span className="input-hint">JPG, PNG, or WEBP up to 10MB.</span>
+                </label>
+                <label>
+                  Floor plan
+                  <input
+                    accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                    onChange={(event) => setVenueForm({ ...venueForm, floor_plan_file: event.target.files?.[0] || null })}
+                    type="file"
+                  />
+                  <span className="input-hint">PDF, JPG, or PNG up to 10MB.</span>
+                </label>
               </div>
               <VenuePhotoPreview src={venueForm.photo_url} name={venueForm.name} />
+              <div className="media-links">
+                {venueForm.photo_url && (
+                  <a href={getDocumentHref(venueForm.photo_url)} rel="noreferrer" target="_blank">Open current venue photo</a>
+                )}
+                {venueForm.floor_plan_url && (
+                  <a href={getDocumentHref(venueForm.floor_plan_url)} rel="noreferrer" target="_blank">Open current floor plan</a>
+                )}
+                {venueForm.photo_file && <span>Selected photo: {venueForm.photo_file.name}</span>}
+                {venueForm.floor_plan_file && <span>Selected floor plan: {venueForm.floor_plan_file.name}</span>}
+              </div>
               <label>Description<textarea value={venueForm.description} onChange={(event) => setVenueForm({ ...venueForm, description: event.target.value })} /></label>
               <label>Amenities<textarea value={venueForm.amenities} onChange={(event) => setVenueForm({ ...venueForm, amenities: event.target.value })} /></label>
               <div className="inline-actions">
@@ -781,8 +827,16 @@ function VenueOwnerWorkspace({ currentUser, activePage = 'dashboard', onUserUpda
                     <span><b>Capacity:</b> {venue.capacity} · <b>Dimensions:</b> {venue.dimensions_sqm || 'Not set'} m2</span>
                     <span><b>Amenities:</b> {venue.amenities || 'No amenities listed.'}</span>
                     <span><b>Daily price:</b> {formatMoney(venue.daily_price)}</span>
-                    <span><b>Photo:</b> {venue.photo_url || 'Placeholder URL not provided.'}</span>
-                    <span><b>Floor plan:</b> {venue.floor_plan_url || 'Placeholder URL not provided.'}</span>
+                    <span>
+                      <b>Photo:</b> {venue.photo_url
+                        ? <a href={getDocumentHref(venue.photo_url)} rel="noreferrer" target="_blank">Open venue photo</a>
+                        : 'No photo uploaded.'}
+                    </span>
+                    <span>
+                      <b>Floor plan:</b> {venue.floor_plan_url
+                        ? <a href={getDocumentHref(venue.floor_plan_url)} rel="noreferrer" target="_blank">Open floor plan</a>
+                        : 'No floor plan uploaded.'}
+                    </span>
                     <div className="inline-actions">
                       <button type="button" onClick={() => editVenue(venue)}>Edit</button>
                       <button className="secondary-button" type="button" onClick={() => toggleListingCalendar(venue.id)}>

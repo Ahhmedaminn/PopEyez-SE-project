@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { apiGet, apiPatch, apiPost } from '../api'
+import { API_BASE_URL, apiGet, apiPatch, apiPost } from '../api'
 import DateSelect from '../components/DateSelect'
 
 const emptyRequestForm = {
@@ -25,6 +25,13 @@ function formatDate(value) {
 
   const dateValue = value.includes('T') ? new Date(value) : new Date(`${value.slice(0, 10)}T00:00:00`)
   return value.includes('T') ? dateValue.toLocaleString() : dateValue.toLocaleDateString()
+}
+
+function getDocumentHref(url) {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  const apiOrigin = API_BASE_URL.replace(/\/api\/?$/, '')
+  return `${apiOrigin}${url.startsWith('/') ? url : `/${url}`}`
 }
 
 function VendorCoordination({ currentUser }) {
@@ -136,7 +143,7 @@ function VendorCoordination({ currentUser }) {
   async function reviewInvoice(id, status) {
     try {
       await apiPatch(`/invoices/${id}/status`, { status, organizer_id: currentUser.id })
-      setMessage(`Invoice ${status === 'Approved' ? 'approved' : 'rejected'}.`)
+      setMessage(`Invoice marked as ${status.toLowerCase()}.`)
       setIsError(false)
       await loadData()
     } catch (error) {
@@ -278,7 +285,12 @@ function VendorCoordination({ currentUser }) {
                   <strong>{delivery.vendor_name}</strong>
                   <span>{delivery.event_name} · {delivery.status}</span>
                   <span>Scheduled: {formatDate(delivery.scheduled_arrival)}</span>
-                  <span>{delivery.confirmation_notes || 'No delivery notes'}</span>
+                  {delivery.status === 'Delayed' && (
+                    <span><b>Delay reason:</b> {delivery.confirmation_notes || 'No delay reason provided'}</span>
+                  )}
+                  {delivery.status === 'Delivered' && delivery.confirmation_notes && (
+                    <span><b>Confirmation:</b> {delivery.confirmation_notes}</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -297,8 +309,8 @@ function VendorCoordination({ currentUser }) {
                   <span>{invoice.vendor_name} · {invoice.event_name}</span>
                   <span>{Number(invoice.amount).toLocaleString()} EGP · {invoice.status}</span>
                   <span>{invoice.itemized_breakdown || 'No itemized breakdown provided'}</span>
-                  {invoice.supporting_document_url?.startsWith('http') ? (
-                    <a href={invoice.supporting_document_url} target="_blank" rel="noreferrer">View supporting document</a>
+                  {invoice.supporting_document_url?.startsWith('http') || invoice.supporting_document_url?.startsWith('/uploads/') ? (
+                    <a href={getDocumentHref(invoice.supporting_document_url)} target="_blank" rel="noreferrer">View supporting document</a>
                   ) : invoice.supporting_document_url ? (
                     <span><b>Document reference:</b> {invoice.supporting_document_url}</span>
                   ) : (
@@ -308,6 +320,11 @@ function VendorCoordination({ currentUser }) {
                     <div className="inline-actions">
                       <button type="button" onClick={() => reviewInvoice(invoice.id, 'Approved')}>Approve</button>
                       <button className="danger-button" type="button" onClick={() => reviewInvoice(invoice.id, 'Rejected')}>Reject</button>
+                    </div>
+                  )}
+                  {invoice.status === 'Approved' && (
+                    <div className="inline-actions">
+                      <button type="button" onClick={() => reviewInvoice(invoice.id, 'Paid')}>Mark Paid</button>
                     </div>
                   )}
                 </li>

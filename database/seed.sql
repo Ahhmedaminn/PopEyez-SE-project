@@ -126,20 +126,34 @@ INSERT INTO expenses (id, event_id, budget_id, vendor_id, title, category, amoun
 INSERT INTO sourcing_requests (id, event_id, vendor_id, organizer_id, requested_items, quantity, delivery_date, event_location, notes, clarification_note, status, created_at) OVERRIDING SYSTEM VALUE VALUES
 (1, 1, 1, 1, 'Canapes, welcome drinks, dessert bites', '85 guest package', '2026-06-20', 'Nile Loft Garden, Zamalek', 'Vegetarian options required.', 'Vendor confirmed two vegetarian trays and one gluten-free dessert option.', 'Accepted', '2026-05-18 13:00:00'),
 (2, 1, 2, 1, 'Speakers, wireless microphone, warm uplighting', '1 complete AV setup', '2026-06-20', 'Nile Loft Garden, Zamalek', 'Setup must finish before 5 PM.', NULL, 'Accepted', '2026-05-18 13:20:00'),
-(3, 2, 2, 1, 'Projector screen and two speakers', '1 market demo setup', '2026-06-28', 'Downtown Warehouse Hall', 'Needed for live creator demos.', NULL, 'Pending', '2026-05-19 13:00:00'),
+(3, 2, 2, 1, 'Projector screen and two speakers', '1 market demo setup', '2026-06-28', 'Downtown Warehouse Hall', 'Needed for live creator demos.', 'Vendor confirmed projector screen dimensions.', 'Accepted', '2026-05-19 13:00:00'),
 (4, 3, 1, 1, 'Coffee station and snack table', '40 staff package', '2026-06-18', 'Nile Loft Garden, Zamalek', 'Needed for training day.', NULL, 'Declined', '2026-06-01 13:00:00'),
 (5, 3, 2, 1, 'Portable speaker and check-in microphone', '1 drill setup', '2026-06-18', 'Nile Loft Garden, Zamalek', 'Arrival before 9 AM.', 'Vendor confirmed backup microphone.', 'Accepted', '2026-06-01 13:20:00'),
 (6, 8, 3, 1, 'Dinner table florals and entrance signage', '12 table arrangements and 1 welcome sign', '2026-07-08', 'Palm Courtyard, Maadi', 'Use warm colors and low-height arrangements.', NULL, 'Pending', '2026-06-12 13:00:00'),
 (7, 8, 2, 1, 'Small sound system for live music', '1 compact sound setup', '2026-07-08', 'Palm Courtyard, Maadi', 'Outdoor sound must be soft enough for dinner.', 'Vendor recommends two compact speakers instead of four.', 'Accepted', '2026-06-12 13:20:00'),
-(8, 7, 2, 11, 'Panel microphones and projector', '4 microphones and 1 projector', '2026-07-05', 'CityBox Black Box, Sheraton', 'Second organizer request for isolation testing.', NULL, 'Accepted', '2026-06-13 13:00:00');
+(8, 7, 2, 11, 'Panel microphones and projector', '4 microphones and 1 projector', '2026-07-05', 'CityBox Black Box, Sheraton', 'Second organizer request for isolation testing.', NULL, 'Accepted', '2026-06-13 13:00:00'),
+(9, 4, 1, 1, 'Preview tasting table and mocktails', '35 guest tasting package', '2026-06-10', 'Garden Gallery Studio, New Cairo', 'Completed preview catering ready for invoice upload testing.', 'Vendor delivered final tasting table.', 'Accepted', '2026-06-04 13:00:00'),
+(10, 4, 3, 1, 'Gallery floral corner and welcome sign', '1 floral corner and 1 sign', '2026-06-10', 'Garden Gallery Studio, New Cairo', 'Completed decor setup ready for invoice upload testing.', 'Vendor used reusable white florals.', 'Accepted', '2026-06-04 13:20:00'),
+(11, 3, 1, 1, 'Staff breakfast trays', '40 boxed breakfasts', '2026-06-18', 'Nile Loft Garden, Zamalek', 'Same-day completed catering delivery for invoice testing.', 'Delivered before staff briefing.', 'Accepted', '2026-06-16 13:00:00'),
+(12, 3, 3, 1, 'Check-in desk flowers', '2 small desk arrangements', '2026-06-18', 'Nile Loft Garden, Zamalek', 'Same-day completed decor delivery for invoice testing.', 'Placed at guest desk.', 'Accepted', '2026-06-16 13:20:00'),
+(13, 4, 2, 1, 'Small speaker and handheld microphone', '1 compact AV kit', '2026-06-10', 'Garden Gallery Studio, New Cairo', 'Completed AV setup ready for a new invoice.', 'Packed down after preview.', 'Accepted', '2026-06-04 13:40:00'),
+(14, 1, 3, 1, 'Launch photo booth backdrop', '1 branded floral photo corner', '2026-06-20', 'Nile Loft Garden, Zamalek', 'Future accepted request that should not be invoice-ready yet.', NULL, 'Accepted', '2026-06-14 13:00:00'),
+(15, 8, 1, 1, 'Dinner dessert tasting', '12 tasting portions', '2026-07-08', 'Palm Courtyard, Maadi', 'Future accepted request that stays preparing.', NULL, 'Accepted', '2026-06-14 13:20:00');
 
 INSERT INTO deliveries (id, sourcing_request_id, event_id, vendor_id, status, scheduled_arrival, arrived_at, confirmation_notes, created_at) OVERRIDING SYSTEM VALUE VALUES
-(1, 1, 1, 1, 'Preparing', '2026-06-20 15:30:00', NULL, 'Menu locked; kitchen team assigned.', '2026-05-20 09:00:00'),
-(2, 2, 1, 2, 'Out for Delivery', '2026-06-20 14:00:00', NULL, 'Driver will call Omar on arrival.', '2026-05-20 09:10:00'),
+(1, 1, 1, 1, 'Delivered', '2026-06-20 15:30:00', '2026-06-20 15:20:00', 'Menu locked; catering delivered for launch invoice history.', '2026-05-20 09:00:00'),
+(2, 2, 1, 2, 'Delivered', '2026-06-20 14:00:00', '2026-06-20 13:50:00', 'AV setup delivered for launch invoice history.', '2026-05-20 09:10:00'),
 (3, 3, 2, 2, 'Delayed', '2026-06-28 09:00:00', NULL, 'Vendor warned that setup may arrive one hour late.', '2026-05-20 09:20:00'),
-(4, 5, 3, 2, 'Arrived', '2026-06-18 09:00:00', '2026-06-18 08:55:00', 'AV drill kit arrived early.', '2026-06-18 08:55:00'),
+(4, 5, 3, 2, 'Delivered', '2026-06-18 09:00:00', '2026-06-18 08:55:00', 'AV drill kit delivered early.', '2026-06-18 08:55:00'),
 (5, 7, 8, 2, 'Preparing', '2026-07-08 16:30:00', NULL, 'Sound equipment reserved for dinner event.', '2026-06-13 09:00:00'),
-(6, 8, 7, 2, 'Delivered', '2026-07-05 12:00:00', '2026-07-05 11:50:00', 'Second organizer panel equipment delivered early.', '2026-06-13 09:10:00');
+(6, 8, 7, 2, 'Delivered', '2026-07-05 12:00:00', '2026-07-05 11:50:00', 'Second organizer panel equipment delivered early.', '2026-06-13 09:10:00'),
+(7, 9, 4, 1, 'Delivered', '2026-06-10 14:30:00', '2026-06-10 14:20:00', 'Preview tasting table delivered and signed off.', '2026-06-10 14:20:00'),
+(8, 10, 4, 3, 'Delivered', '2026-06-10 15:00:00', '2026-06-10 14:50:00', 'Gallery floral corner delivered and photographed.', '2026-06-10 14:50:00'),
+(9, 11, 3, 1, 'Delivered', '2026-06-18 08:00:00', '2026-06-18 07:50:00', 'Staff breakfast trays delivered before briefing.', '2026-06-18 07:50:00'),
+(10, 12, 3, 3, 'Delivered', '2026-06-18 08:30:00', '2026-06-18 08:25:00', 'Check-in desk flowers delivered for operations drill.', '2026-06-18 08:25:00'),
+(11, 13, 4, 2, 'Delivered', '2026-06-10 15:30:00', '2026-06-10 15:15:00', 'Compact AV kit delivered for preview event.', '2026-06-10 15:15:00'),
+(12, 14, 1, 3, 'Preparing', '2026-06-20 13:00:00', NULL, 'Backdrop is still being prepared for launch day.', '2026-06-14 09:00:00'),
+(13, 15, 8, 1, 'Preparing', '2026-07-08 15:00:00', NULL, 'Dessert tasting not delivered yet.', '2026-06-14 09:20:00');
 
 INSERT INTO invoices (id, delivery_id, sourcing_request_id, event_id, vendor_id, invoice_number, amount, status, itemized_breakdown, supporting_document_url, submitted_at, reviewed_at, created_at) OVERRIDING SYSTEM VALUE VALUES
 (1, 1, 1, 1, 1, 'CB-2026-061', 15300.00, 'Pending Review', '85 guest canape package with drinks and dessert bites.', '/demo/invoices/cb-2026-061.pdf', '2026-06-20 23:00:00', NULL, '2026-06-20 23:00:00'),

@@ -65,7 +65,6 @@ PopEyez-SE-project/
     seed.sql
   docs/
     AI-chatlog-MS2.md
-    assumptions.md
   frontend/
     src/
       pages/

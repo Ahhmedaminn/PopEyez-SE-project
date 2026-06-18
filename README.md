@@ -462,5 +462,4 @@ The User Journeys document did not specify every technical detail, so the projec
 - If SMTP is not configured, invitation emails are saved locally in `backend/outbox`.
 - QR codes encode local check-in data for staff verification in the app.
 - Staff can mark vendor arrivals by setting the delivery status to `Delivered`.
-- Report export is implemented in practical local formats: organizer reports export as JSON and venue owner performance reports export as PDF.
 - Uploaded files are stored locally in `backend/uploads`.

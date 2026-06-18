@@ -895,6 +895,97 @@ button.calendar-day.selected {
   color: #b91c1c;
 }
 
+.layout-designer {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 260px 1fr;
+  align-items: start;
+}
+
+.layout-controls {
+  display: grid;
+  gap: 14px;
+}
+
+.layout-section-label {
+  border-top: 1px solid #e7edf5;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+  padding-top: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.element-palette {
+  display: grid;
+  gap: 6px;
+}
+
+.palette-button {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.layout-actions {
+  border-top: 1px solid #e7edf5;
+  display: grid;
+  gap: 8px;
+  padding-top: 14px;
+}
+
+.layout-canvas-panel {
+  overflow-x: auto;
+}
+
+.floor-plan-canvas {
+  border: 1px solid #dfe7f1;
+  border-radius: 6px;
+  cursor: crosshair;
+  display: block;
+  max-width: 100%;
+  touch-action: none;
+  user-select: none;
+  width: 100%;
+}
+
+.floor-plan-readonly {
+  cursor: default;
+}
+
+.canvas-hint {
+  color: #94a3b8;
+  font-size: 13px;
+  margin: 8px 0 0;
+  text-align: center;
+}
+
+.shared-badge {
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  border-radius: 999px;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+
+.staff-layout-list li {
+  gap: 8px;
+}
+
+.staff-layout-viewer {
+  margin-top: 10px;
+  overflow-x: auto;
+}
+
+@media (max-width: 1050px) {
+  .layout-designer {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1050px) {
   .stats-grid,
   .three-column {

@@ -16,6 +16,7 @@ import StaffOperations from './pages/StaffOperations'
 import StaffProfile from './pages/StaffProfile'
 import StaffTasks from './pages/StaffTasks'
 import UserManagement from './pages/UserManagement'
+import OrganizerLayouts from './pages/OrganizerLayouts'
 import VendorCoordination from './pages/VendorCoordination'
 import VendorWorkspace from './pages/VendorWorkspace'
 import VenueOwnerWorkspace from './pages/VenueOwnerWorkspace'
@@ -32,6 +33,7 @@ const organizerPages = [
   { id: 'venues', label: 'Venues' },
   { id: 'vendors', label: 'Vendors' },
   { id: 'guests', label: 'Guests' },
+  { id: 'layouts', label: 'Layouts' },
   { id: 'operations', label: 'Operations' },
 ]
 
@@ -180,6 +182,10 @@ function App() {
 
     if (activePage === 'vendors') {
       return <VendorCoordination currentUser={currentUser} />
+    }
+
+    if (activePage === 'layouts') {
+      return <OrganizerLayouts currentUser={currentUser} />
     }
 
     if (activePage === 'guests') {

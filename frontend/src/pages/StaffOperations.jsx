@@ -100,7 +100,7 @@ function StaffOperations({ currentUser }) {
 
     try {
       await apiPatch(`/deliveries/${id}/status`, { status: 'Delivered', staff_id: currentUser.id })
-      setMessage('Vendor delivery marked as delivered.')
+      setMessage('Vendor marked as arrived.')
       await loadEventOperations(selectedEventId)
     } catch (err) {
       setMessage(err.message || 'Could not update delivery status.')
@@ -148,7 +148,7 @@ function StaffOperations({ currentUser }) {
       <section className="stats-grid">
         <article><span>Total guests</span><strong>{checkins.length}</strong></article>
         <article><span>Arrived guests</span><strong>{arrivedGuests}</strong></article>
-        <article><span>Vendor deliveries</span><strong>{deliveries.length}</strong></article>
+        <article><span>Vendor arrivals</span><strong>{deliveries.length}</strong></article>
         <article><span>Live messages</span><strong>{messages.length}</strong></article>
       </section>
 
@@ -192,8 +192,9 @@ function StaffOperations({ currentUser }) {
                   <span>{delivery.event_name || 'Event'} - {delivery.status}</span>
                   <span>{delivery.requested_items || 'No requested items'} - {delivery.quantity || 'No quantity'}</span>
                   <span>{delivery.event_location || 'No delivery location'} - scheduled {formatDateTime(delivery.scheduled_arrival)}</span>
+                  <span>Arrived at: {formatDateTime(delivery.arrived_at)}</span>
                   <button type="button" disabled={delivery.status === 'Delivered'} onClick={() => markDeliveryDelivered(delivery.id)}>
-                    Mark Delivered
+                    Mark Arrived
                   </button>
                 </li>
               ))}

@@ -18,6 +18,7 @@ const emptyGuestForm = {
 function GuestManagement({ currentUser }) {
   const [events, setEvents] = useState([])
   const [guests, setGuests] = useState([])
+  const [invitationGuests, setInvitationGuests] = useState([])
   const [filters, setFilters] = useState({
     event_id: '',
     name: '',
@@ -53,6 +54,11 @@ function GuestManagement({ currentUser }) {
     setGuests(guestData)
   }
 
+  async function loadInvitationGuests() {
+    const guestData = await apiGet(`/guests/search?organizer_id=${currentUser.id}`)
+    setInvitationGuests(guestData.filter((guest) => !guest.invitation_id))
+  }
+
   useEffect(() => {
     loadEvents().catch((error) => {
       setMessage(error.message || 'Could not load organizer events.')
@@ -72,6 +78,13 @@ function GuestManagement({ currentUser }) {
       })
   }, [filters, currentUser.id])
 
+  useEffect(() => {
+    loadInvitationGuests().catch((error) => {
+      setMessage(error.message || 'Could not load guests for invitations.')
+      setIsError(true)
+    })
+  }, [currentUser.id])
+
   function updateGuestForm(field, value) {
     setGuestForm((current) => ({ ...current, [field]: value }))
   }
@@ -87,7 +100,7 @@ function GuestManagement({ currentUser }) {
     }
 
     try {
-      await apiPost('/guests', {
+      const createdGuest = await apiPost('/guests', {
         event_id: guestForm.event_id,
         full_name: guestForm.full_name.trim(),
         email: guestForm.email.trim() || null,
@@ -98,9 +111,16 @@ function GuestManagement({ currentUser }) {
         organizer_id: currentUser.id,
       })
       setGuestForm((current) => ({ ...emptyGuestForm, event_id: current.event_id }))
-      setMessage('Guest added successfully.')
+      if (createdGuest.account_created) {
+        setMessage(`Guest added and login account created. Email: ${createdGuest.login_email}. Temporary password: ${createdGuest.temporary_password}.`)
+      } else if (createdGuest.user_id) {
+        setMessage('Guest added and linked to an existing guest account.')
+      } else {
+        setMessage('Guest added successfully. Add an email to create a guest login account.')
+      }
       setIsError(false)
       await loadGuests()
+      await loadInvitationGuests()
     } catch (error) {
       setMessage(error.message || 'Could not add guest.')
       setIsError(true)
@@ -142,6 +162,7 @@ function GuestManagement({ currentUser }) {
         setIsError(false)
       }
       await loadGuests()
+      await loadInvitationGuests()
     } catch (error) {
       setMessage(error.message || 'Could not create invitation.')
       setIsError(true)
@@ -169,6 +190,7 @@ function GuestManagement({ currentUser }) {
         setIsError(false)
       }
       await loadGuests()
+      await loadInvitationGuests()
     } catch (error) {
       setMessage(error.message || 'Could not update invitation status.')
       setIsError(true)
@@ -259,10 +281,10 @@ function GuestManagement({ currentUser }) {
         <div className="panel-header"><h2>Create Digital Invitation</h2></div>
         <form className="form invitation-form" onSubmit={sendInvitation}>
           <select value={invitationForm.guest_id} onChange={(event) => setInvitationForm({ ...invitationForm, guest_id: event.target.value })} required>
-            <option value="">Choose guest</option>
-            {guests.map((guest) => (
+            <option value="">Choose uninvited guest</option>
+            {invitationGuests.map((guest) => (
               <option key={guest.id} value={guest.id}>
-                {guest.full_name} · {guest.event_name}{guest.invitation_id ? ' · invitation exists' : ''}
+                {guest.full_name} · {guest.event_name}
               </option>
             ))}
           </select>

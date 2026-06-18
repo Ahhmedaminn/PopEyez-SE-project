@@ -19,6 +19,13 @@ function makeId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
 }
 
+function getNextElementPosition(count, template) {
+  return {
+    x: 60 + ((count * 72) % Math.max(1, CANVAS_W - template.w - 120)),
+    y: 60 + ((count * 54) % Math.max(1, CANVAS_H - template.h - 120)),
+  }
+}
+
 function drawElement(ctx, el, isSelected) {
   const { x, y, w, h, type, color, label } = el
 
@@ -162,6 +169,7 @@ function OrganizerLayouts({ currentUser }) {
       return
     }
     const template = ELEMENT_TYPES.find((t) => t.type === type)
+    const position = getNextElementPosition(elements.length, template)
     const newEl = {
       id: makeId(),
       type,
@@ -169,8 +177,7 @@ function OrganizerLayouts({ currentUser }) {
       color: template.color,
       w: template.w,
       h: template.h,
-      x: 60 + Math.round(Math.random() * 300),
-      y: 60 + Math.round(Math.random() * 250),
+      ...position,
     }
     setElements((prev) => [...prev, newEl])
     setSelectedId(newEl.id)
@@ -294,7 +301,7 @@ function OrganizerLayouts({ currentUser }) {
     if (!win) return
     win.document.write(
       `<html><head><title>${layoutName}</title><style>body{margin:0}img{max-width:100%;display:block}</style></head>` +
-      `<body><img src="${imgData}"><script>window.onload=function(){window.print()}<\/script></body></html>`
+      `<body><img src="${imgData}"><script>window.onload=function(){window.print()}</script></body></html>`
     )
     win.document.close()
   }

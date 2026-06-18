@@ -12,6 +12,8 @@ function getTomorrowDate() {
 }
 
 function EventsTasks({ currentUser }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const currentYear = Number(today.slice(0, 4))
   const [events, setEvents] = useState([])
   const [tasks, setTasks] = useState([])
   const [users, setUsers] = useState([])
@@ -148,7 +150,7 @@ function EventsTasks({ currentUser }) {
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </select>
-            <DateSelect value={eventFilters.date} onChange={(date) => setEventFilters({ ...eventFilters, date })} minYear={2026} maxYear={2035} />
+            <DateSelect value={eventFilters.date} onChange={(date) => setEventFilters({ ...eventFilters, date })} minDate={today} minYear={currentYear} maxYear={2035} />
           </div>
           <ul className="list data-list">
             {events.map((item) => (
@@ -166,7 +168,7 @@ function EventsTasks({ currentUser }) {
           </div>
           <form className="form compact-form" onSubmit={createEvent}>
             <input placeholder="Event name" value={eventForm.name} onChange={(e) => setEventForm({ ...eventForm, name: e.target.value })} required />
-            <DateSelect value={eventForm.event_date} onChange={(date) => setEventForm({ ...eventForm, event_date: date })} minYear={2026} maxYear={2035} required />
+            <DateSelect value={eventForm.event_date} onChange={(date) => setEventForm({ ...eventForm, event_date: date })} minDate={today} minYear={currentYear} maxYear={2035} required />
             <input placeholder="Event type" value={eventForm.event_type} onChange={(e) => setEventForm({ ...eventForm, event_type: e.target.value })} />
             <input type="number" placeholder="Expected attendees" value={eventForm.expected_attendees} onChange={(e) => setEventForm({ ...eventForm, expected_attendees: e.target.value })} />
             <select value={eventForm.status} onChange={(e) => setEventForm({ ...eventForm, status: e.target.value })}>
@@ -223,7 +225,15 @@ function EventsTasks({ currentUser }) {
               <option value="">Unassigned</option>
               {users.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
             </select>
-            <DateSelect value={taskForm.due_date} onChange={(date) => setTaskForm({ ...taskForm, due_date: date })} minYear={2026} maxYear={2035} minDate={tomorrowDate} />
+            <label>
+              Due date
+              <input
+                type="date"
+                min={tomorrowDate}
+                value={taskForm.due_date}
+                onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })}
+              />
+            </label>
             <select value={taskForm.status} onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value })}>
               {taskStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
             </select>

@@ -4,6 +4,7 @@ const { organizerOwnsEvent } = require("../ownership");
 
 const router = express.Router();
 const allowedRsvpStatuses = ["Attending", "Not Attending", "Maybe", "No Response"];
+const defaultGuestPassword = "demo_hash_guest";
 
 function isMissing(value) {
   return value === undefined || value === null || value === "";
@@ -168,33 +169,83 @@ router.post("/", async function (req, res) {
       return res.status(403).json({ error: "You can only add guests to your own events" });
     }
 
-    let linkedUserId = user_id || null;
-    if (!linkedUserId && email) {
-      const userResult = await pool.query(
-        "SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND role = 'guest' AND status = 'Active' LIMIT 1",
-        [String(email).trim()]
-      );
-      linkedUserId = userResult.rows[0]?.id || null;
-    }
+    const client = await pool.connect();
 
-    const result = await pool.query(
-      `INSERT INTO guests (
-        event_id, user_id, full_name, email, phone, dietary_preferences, special_requirements, notes
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *`,
-      [
-        event_id,
-        linkedUserId,
-        String(full_name).trim(),
-        email ? String(email).trim() : null,
-        phone ? String(phone).trim() : null,
-        dietary_preferences ? String(dietary_preferences).trim() : null,
-        special_requirements ? String(special_requirements).trim() : null,
-        notes ? String(notes).trim() : null,
-      ]
-    );
-    res.status(201).json(result.rows[0]);
+    try {
+      await client.query("BEGIN");
+
+      const trimmedEmail = email ? String(email).trim() : null;
+      const trimmedFullName = String(full_name).trim();
+      let linkedUserId = user_id || null;
+      let accountCreated = false;
+
+      if (!linkedUserId && trimmedEmail) {
+        const userResult = await client.query(
+          "SELECT id, role, status FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1",
+          [trimmedEmail]
+        );
+        const existingUser = userResult.rows[0];
+
+        if (existingUser) {
+          if (existingUser.role !== "guest" || existingUser.status !== "Active") {
+            await client.query("ROLLBACK");
+            return res.status(400).json({
+              error: "This email already belongs to a non-active guest account",
+            });
+          }
+
+          linkedUserId = existingUser.id;
+        } else {
+          const createdUserResult = await client.query(
+            `INSERT INTO users (
+              full_name, email, password_hash, role, status, phone, created_by
+            )
+            VALUES ($1, $2, $3, 'guest', 'Active', $4, $5)
+            RETURNING id`,
+            [
+              trimmedFullName,
+              trimmedEmail,
+              defaultGuestPassword,
+              phone ? String(phone).trim() : null,
+              organizer_id,
+            ]
+          );
+          linkedUserId = createdUserResult.rows[0].id;
+          accountCreated = true;
+        }
+      }
+
+      const result = await client.query(
+        `INSERT INTO guests (
+          event_id, user_id, full_name, email, phone, dietary_preferences, special_requirements, notes
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *`,
+        [
+          event_id,
+          linkedUserId,
+          trimmedFullName,
+          trimmedEmail,
+          phone ? String(phone).trim() : null,
+          dietary_preferences ? String(dietary_preferences).trim() : null,
+          special_requirements ? String(special_requirements).trim() : null,
+          notes ? String(notes).trim() : null,
+        ]
+      );
+
+      await client.query("COMMIT");
+      res.status(201).json({
+        ...result.rows[0],
+        account_created: accountCreated,
+        login_email: trimmedEmail,
+        temporary_password: accountCreated ? defaultGuestPassword : null,
+      });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error("Error creating guest:", error);
     res.status(500).json({ error: "Failed to create guest" });

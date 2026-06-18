@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiGet } from '../api'
+import DateSelect from '../components/DateSelect'
 
 function formatDate(value) {
   if (!value) {
@@ -9,19 +10,55 @@ function formatDate(value) {
   return new Date(value).toLocaleDateString()
 }
 
-function EventList({ title, events }) {
+function getDateValue(value) {
+  return value ? String(value).slice(0, 10) : ''
+}
+
+function EventList({ title, events, filterable = false }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const currentYear = Number(today.slice(0, 4))
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const visibleEvents = filterable
+    ? events.filter((event) => {
+      const eventDate = getDateValue(event.event_date)
+      if (!eventDate) return false
+      if (dateFrom && eventDate < dateFrom) return false
+      if (dateTo && eventDate > dateTo) return false
+      return true
+    })
+    : events
+
   return (
     <section className="page-panel">
       <div className="panel-header">
         <h2>{title}</h2>
-        <span>{events.length}</span>
+        <span>{visibleEvents.length}</span>
       </div>
 
-      {events.length === 0 ? (
+      {filterable && (
+        <div className="filter-row">
+          <label>
+            From date
+            <DateSelect value={dateFrom} onChange={setDateFrom} minDate={today} minYear={currentYear} maxYear={2035} />
+          </label>
+          <label>
+            To date
+            <DateSelect value={dateTo} onChange={setDateTo} minDate={today} minYear={currentYear} maxYear={2035} />
+          </label>
+          {(dateFrom || dateTo) && (
+            <button className="secondary-button" type="button" onClick={() => { setDateFrom(''); setDateTo('') }}>
+              Clear Dates
+            </button>
+          )}
+        </div>
+      )}
+
+      {visibleEvents.length === 0 ? (
         <p className="empty-state">No events to show.</p>
       ) : (
         <ul className="list">
-          {events.map((event) => (
+          {visibleEvents.map((event) => (
             <li key={event.id}>
               <strong>{event.name}</strong>
               <span>
@@ -136,7 +173,7 @@ function OrganizerDashboard({ currentUser }) {
 
       <div className="dashboard-grid">
         <EventList title="Today's Events" events={dashboard.todays_events || []} />
-        <EventList title="Upcoming Events" events={dashboard.upcoming_events || []} />
+        <EventList title="Upcoming Events" events={dashboard.upcoming_events || []} filterable />
 
         <section className="page-panel">
           <div className="panel-header">

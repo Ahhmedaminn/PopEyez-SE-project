@@ -19,7 +19,8 @@ INSERT INTO users (id, full_name, email, password_hash, role, status, phone, age
 (15, 'Mina Atef', 'mina.guest@popeyez.demo', 'demo_hash_guest', 'guest', 'Active', '+20 101 555 6666', 33, NULL, NULL, NULL, 1, '2026-05-05 11:00:00'),
 (16, 'Leen Farouk', 'leen.guest@popeyez.demo', 'demo_hash_guest', 'guest', 'Active', '+20 101 666 7777', 25, NULL, NULL, NULL, 1, '2026-05-05 11:10:00'),
 (17, 'Bassel Karim', 'bassel.guest@popeyez.demo', 'demo_hash_guest', 'guest', 'Active', '+20 101 777 8888', 31, NULL, NULL, NULL, 1, '2026-05-05 11:20:00'),
-(18, 'Rana Fekry', 'rana.staff@popeyez.demo', 'demo_hash_staff', 'staff', 'Active', '+20 101 888 9999', 29, 'Logistics', 'part-time', NULL, 11, '2026-05-06 09:00:00');
+(18, 'Rana Fekry', 'rana.staff@popeyez.demo', 'demo_hash_staff', 'staff', 'Active', '+20 101 888 9999', 29, 'Logistics', 'part-time', NULL, 11, '2026-05-06 09:00:00'),
+(19, 'Tarek Mostafa', 'tarek.mostafa@example.com', 'demo_hash_guest', 'guest', 'Active', '+20 100 999 2222', 30, NULL, NULL, NULL, 1, '2026-05-21 10:15:00');
 
 INSERT INTO venues (id, owner_id, name, description, location, city, capacity, dimensions_sqm, amenities, daily_price, photo_url, floor_plan_url, status, created_at) OVERRIDING SYSTEM VALUE VALUES
 (1, 8, 'Nile Loft Garden', 'Rooftop pop-up venue with garden seating and Nile views.', 'Zamalek, Cairo', 'Cairo', 120, 260.00, 'Wi-Fi, catering prep area, outdoor lighting, parking nearby', 18000.00, '/demo/venues/nile-loft.jpg', '/demo/floorplans/nile-loft.pdf', 'Active', '2026-05-05 09:00:00'),
@@ -81,11 +82,11 @@ INSERT INTO booking_requests (id, event_id, venue_id, organizer_id, requested_da
 (10, 7, 7, 11, '2026-07-06', 95, 'Backup Alexandria terrace request for second organizer.', 18000.00, '19000 EGP with sea-view catering prep included.', 'Counter Proposal', '2026-06-10 12:30:00');
 
 INSERT INTO layouts (id, event_id, venue_id, created_by, name, layout_data, shared_with_team, export_url, created_at, updated_at) OVERRIDING SYSTEM VALUE VALUES
-(1, 1, 1, 1, 'Launch Night Garden Layout', '{"zones":[{"name":"Reception","x":10,"y":15},{"name":"Stage","x":60,"y":20},{"name":"Catering","x":25,"y":70}],"capacity":85}'::jsonb, TRUE, '/demo/layouts/launch-night.pdf', '2026-05-11 14:00:00', '2026-05-12 16:30:00'),
-(2, 2, 2, 1, 'Market Booth Layout', '{"zones":[{"name":"Vendor Booths","x":15,"y":20},{"name":"Demo Stage","x":70,"y":30},{"name":"Food Corner","x":20,"y":75}],"booths":24}'::jsonb, FALSE, NULL, '2026-05-12 14:00:00', NULL),
-(3, 3, 1, 1, 'Operations Drill Layout', '{"zones":[{"name":"Check-in Desk","x":8,"y":12},{"name":"Vendor Drop","x":45,"y":18},{"name":"Staff Briefing","x":70,"y":60}],"notes":"Shared with team for same-day testing."}'::jsonb, TRUE, '/demo/layouts/operations-drill.pdf', '2026-06-01 14:00:00', NULL),
-(4, 8, 4, 1, 'Dinner Night Courtyard Layout', '{"zones":[{"name":"Dinner Tables","x":20,"y":25},{"name":"Music Corner","x":70,"y":30},{"name":"Valet Desk","x":8,"y":8}],"tables":12}'::jsonb, TRUE, '/demo/layouts/dinner-night.pdf', '2026-06-12 14:00:00', '2026-06-13 11:00:00'),
-(5, 7, 6, 11, 'Brand Salon Black Box Layout', '{"zones":[{"name":"Panel Stage","x":65,"y":20},{"name":"Reception","x":10,"y":15},{"name":"Showcase Wall","x":30,"y":65}],"owner":"CityBox"}'::jsonb, TRUE, '/demo/layouts/brand-salon.pdf', '2026-06-13 14:00:00', NULL);
+(1, 1, 1, 1, 'Launch Night Garden Layout', '[{"id":"launch-stage","type":"stage","label":"Reveal Stage","color":"#b45309","x":560,"y":70,"w":130,"h":60},{"id":"launch-reception","type":"entrance","label":"Rooftop Entry","color":"#7c3aed","x":55,"y":55,"w":80,"h":34},{"id":"launch-catering","type":"bar","label":"Dessert Bar","color":"#dc2626","x":165,"y":410,"w":110,"h":44},{"id":"launch-table-1","type":"table-round","label":"VIP Table","color":"#2563eb","x":260,"y":180,"w":64,"h":64},{"id":"launch-table-2","type":"table-round","label":"Media Table","color":"#2563eb","x":360,"y":180,"w":64,"h":64},{"id":"launch-dance","type":"dance-floor","label":"Brand Reveal","color":"#0891b2","x":470,"y":310,"w":130,"h":100}]'::jsonb, TRUE, '/demo/layouts/launch-night.pdf', '2026-05-11 14:00:00', '2026-05-12 16:30:00'),
+(2, 2, 2, 1, 'Market Booth Layout', '[{"id":"market-entry","type":"entrance","label":"Main Entry","color":"#7c3aed","x":50,"y":50,"w":80,"h":34},{"id":"market-booths-a","type":"chairs","label":"Booths A","color":"#64748b","x":180,"y":120,"w":110,"h":26},{"id":"market-booths-b","type":"chairs","label":"Booths B","color":"#64748b","x":180,"y":190,"w":110,"h":26},{"id":"market-demo","type":"stage","label":"Demo Stage","color":"#b45309","x":560,"y":130,"w":130,"h":60},{"id":"market-food","type":"bar","label":"Food Corner","color":"#dc2626","x":520,"y":405,"w":110,"h":44}]'::jsonb, FALSE, NULL, '2026-05-12 14:00:00', NULL),
+(3, 3, 1, 1, 'Operations Drill Layout', '[{"id":"drill-entry","type":"entrance","label":"Side Entry","color":"#7c3aed","x":45,"y":60,"w":80,"h":34},{"id":"drill-checkin","type":"table-rect","label":"Check-In","color":"#16a34a","x":145,"y":70,"w":90,"h":44},{"id":"drill-vendor","type":"bar","label":"Vendor Drop","color":"#dc2626","x":365,"y":90,"w":110,"h":44},{"id":"drill-briefing","type":"chairs","label":"Staff Row","color":"#64748b","x":560,"y":330,"w":110,"h":26},{"id":"drill-note","type":"text","label":"Radio Desk","color":"#475569","x":260,"y":395,"w":100,"h":36}]'::jsonb, TRUE, '/demo/layouts/operations-drill.pdf', '2026-06-01 14:00:00', NULL),
+(4, 8, 4, 1, 'Dinner Night Courtyard Layout', '[{"id":"dinner-entry","type":"entrance","label":"Valet Desk","color":"#7c3aed","x":45,"y":55,"w":80,"h":34},{"id":"dinner-table-1","type":"table-round","label":"Table 1","color":"#2563eb","x":180,"y":140,"w":64,"h":64},{"id":"dinner-table-2","type":"table-round","label":"Table 2","color":"#2563eb","x":285,"y":140,"w":64,"h":64},{"id":"dinner-table-3","type":"table-round","label":"Table 3","color":"#2563eb","x":390,"y":140,"w":64,"h":64},{"id":"dinner-music","type":"stage","label":"Music","color":"#b45309","x":560,"y":85,"w":130,"h":60},{"id":"dinner-bar","type":"bar","label":"Drinks","color":"#dc2626","x":520,"y":420,"w":110,"h":44}]'::jsonb, TRUE, '/demo/layouts/dinner-night.pdf', '2026-06-12 14:00:00', '2026-06-13 11:00:00'),
+(5, 7, 6, 11, 'Brand Salon Black Box Layout', '[{"id":"salon-reception","type":"entrance","label":"Reception","color":"#7c3aed","x":60,"y":70,"w":80,"h":34},{"id":"salon-panel","type":"stage","label":"Panel Stage","color":"#b45309","x":555,"y":80,"w":130,"h":60},{"id":"salon-showcase","type":"dance-floor","label":"Showcase","color":"#0891b2","x":300,"y":315,"w":130,"h":100},{"id":"salon-seating","type":"chairs","label":"Audience","color":"#64748b","x":310,"y":185,"w":110,"h":26}]'::jsonb, TRUE, '/demo/layouts/brand-salon.pdf', '2026-06-13 14:00:00', NULL);
 
 INSERT INTO tasks (id, event_id, assigned_to, created_by, title, description, category, due_date, status, created_at) OVERRIDING SYSTEM VALUE VALUES
 (1, 1, 2, 1, 'Confirm lighting setup', 'Coordinate with venue owner and AV vendor for rooftop lighting.', 'Logistics', '2026-06-16', 'In Progress', '2026-05-13 09:00:00'),
@@ -145,7 +146,7 @@ INSERT INTO deliveries (id, sourcing_request_id, event_id, vendor_id, status, sc
 (2, 2, 1, 2, 'Delivered', '2026-06-20 14:00:00', '2026-06-20 13:50:00', 'AV setup delivered for launch invoice history.', '2026-05-20 09:10:00'),
 (3, 3, 2, 2, 'Delayed', '2026-06-28 09:00:00', NULL, 'Vendor warned that setup may arrive one hour late.', '2026-05-20 09:20:00'),
 (4, 5, 3, 2, 'Delivered', '2026-06-18 09:00:00', '2026-06-18 08:55:00', 'AV drill kit delivered early.', '2026-06-18 08:55:00'),
-(5, 7, 8, 2, 'Preparing', '2026-07-08 16:30:00', NULL, 'Sound equipment reserved for dinner event.', '2026-06-13 09:00:00'),
+(5, 7, 8, 2, 'Out for Delivery', '2026-07-08 16:30:00', NULL, 'Sound equipment is on the way for dinner event.', '2026-06-13 09:00:00'),
 (6, 8, 7, 2, 'Delivered', '2026-07-05 12:00:00', '2026-07-05 11:50:00', 'Second organizer panel equipment delivered early.', '2026-06-13 09:10:00'),
 (7, 9, 4, 1, 'Delivered', '2026-06-10 14:30:00', '2026-06-10 14:20:00', 'Preview tasting table delivered and signed off.', '2026-06-10 14:20:00'),
 (8, 10, 4, 3, 'Delivered', '2026-06-10 15:00:00', '2026-06-10 14:50:00', 'Gallery floral corner delivered and photographed.', '2026-06-10 14:50:00'),
@@ -167,7 +168,7 @@ INSERT INTO guests (id, event_id, user_id, full_name, email, phone, dietary_pref
 (1, 1, 6, 'Youssef Nabil', 'youssef.guest@popeyez.demo', '+20 100 666 7777', 'No seafood', NULL, 'VIP guest from brand partner.', '2026-05-21 10:00:00'),
 (2, 1, 7, 'Salma Riad', 'salma.guest@popeyez.demo', '+20 100 777 8888', 'Vegetarian', 'Aisle seat if seating is assigned.', 'Media contact.', '2026-05-21 10:05:00'),
 (3, 1, NULL, 'Farah Amin', 'farah.amin@example.com', '+20 100 999 1111', 'Gluten-free', NULL, 'Invited by organizer.', '2026-05-21 10:10:00'),
-(4, 2, NULL, 'Tarek Mostafa', 'tarek.mostafa@example.com', '+20 100 999 2222', NULL, NULL, 'Creator booth applicant.', '2026-05-21 10:15:00'),
+(4, 2, 19, 'Tarek Mostafa', 'tarek.mostafa@example.com', '+20 100 999 2222', NULL, NULL, 'Creator booth applicant.', '2026-05-21 10:15:00'),
 (5, 3, NULL, 'Ahmed Amin', 'ahmed.amin@example.com', '+20 100 999 3333', 'Vegetarian', NULL, 'Demo guest for check-in status testing.', '2026-06-01 10:00:00'),
 (6, 3, 16, 'Leen Farouk', 'leen.guest@popeyez.demo', '+20 101 666 7777', 'Nut allergy', 'Needs staff escort at entrance.', 'Demo guest for special requirement testing.', '2026-06-01 10:05:00'),
 (7, 4, 15, 'Mina Atef', 'mina.guest@popeyez.demo', '+20 101 555 6666', NULL, NULL, 'Completed preview feedback guest.', '2026-06-10 10:00:00'),
@@ -233,7 +234,9 @@ INSERT INTO checkins (id, event_id, guest_id, checked_in_by, status, checkin_met
 (12, 4, 12, 3, 'Arrived', 'qr_code', '2026-06-10 17:08:00', '2026-06-10 17:08:00');
 
 INSERT INTO feedback (id, event_id, guest_id, overall_rating, food_rating, venue_rating, organization_rating, sentiment, comments, submitted_at, created_at) OVERRIDING SYSTEM VALUE VALUES
-(1, 4, 7, 2, 2, 3, 2, 'Negative', 'The preview was useful, but signage was confusing and check-in was slow.', '2026-06-11 10:00:00', '2026-06-11 10:00:00');
+(1, 4, 7, 2, 2, 3, 2, 'Negative', 'The preview was useful, but signage was confusing and check-in was slow.', '2026-06-11 10:00:00', '2026-06-11 10:00:00'),
+(2, 1, 1, 5, 5, 5, 5, 'Positive', 'The launch was smooth, the rooftop setup looked polished, and check-in was fast.', '2026-06-21 10:00:00', '2026-06-21 10:00:00'),
+(3, 7, 11, 3, 3, 4, 3, 'Neutral', 'The panel setup was clear, but the reception flow needed more signage.', '2026-07-06 10:30:00', '2026-07-06 10:30:00');
 
 SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1));
 SELECT setval(pg_get_serial_sequence('venues', 'id'), COALESCE((SELECT MAX(id) FROM venues), 1));

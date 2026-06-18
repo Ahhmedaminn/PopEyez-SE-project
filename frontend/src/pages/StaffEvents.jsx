@@ -38,7 +38,8 @@ function getEventDateValue(value) {
 
 function StaffEvents({ currentUser }) {
   const [events, setEvents] = useState([])
-  const [dateFilter, setDateFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -55,13 +56,13 @@ function StaffEvents({ currentUser }) {
     loadEvents()
   }, [currentUser.id])
 
-  const visibleEvents = dateFilter
-    ? events.filter((event) => getEventDateValue(event.event_date) === dateFilter)
-    : events
-
-  const eventDateOptions = Array.from(
-    new Map(events.map((event) => [getEventDateValue(event.event_date), event.event_date])).entries()
-  ).filter(([value]) => value)
+  const visibleEvents = events.filter((event) => {
+    const eventDate = getEventDateValue(event.event_date)
+    if (!eventDate) return false
+    if (dateFrom && eventDate < dateFrom) return false
+    if (dateTo && eventDate > dateTo) return false
+    return true
+  })
 
   return (
     <div className="workspace-section">
@@ -73,14 +74,16 @@ function StaffEvents({ currentUser }) {
 
       <section className="page-panel toolbar-panel">
         <label>
-          Event date
-          <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)}>
-            <option value="">All dates</option>
-            {eventDateOptions.map(([value, label]) => (
-              <option key={value} value={value}>{formatDate(label)}</option>
-            ))}
-          </select>
+          From date
+          <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
         </label>
+        <label>
+          To date
+          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
+        </label>
+        <button type="button" className="secondary-button" onClick={() => { setDateFrom(''); setDateTo('') }}>
+          Clear Dates
+        </button>
       </section>
 
       {message && <p className="error-text">{message}</p>}

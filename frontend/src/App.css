@@ -630,6 +630,39 @@ main {
   gap: 6px;
 }
 
+.guest-qr-card {
+  align-items: center;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.guest-qr-card img,
+.guest-qr-fallback {
+  background: #ffffff;
+  border: 1px solid #dfe7f1;
+  border-radius: 6px;
+  height: 132px;
+  width: 132px;
+}
+
+.guest-qr-card img {
+  display: block;
+  padding: 8px;
+}
+
+.guest-qr-fallback {
+  align-items: center;
+  color: #64748b;
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  justify-content: center;
+  text-align: center;
+}
+
 .guest-rsvp-form {
   border-top: 1px solid #f1f5f9;
   padding-top: 14px;

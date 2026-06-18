@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import QRCode from 'qrcode'
 import { apiGet, apiPatch, apiPost } from '../api'
 
 const rsvpStatuses = ['Attending', 'Not Attending', 'Maybe']
@@ -78,6 +79,61 @@ function getPageTitle(activePage) {
   if (activePage === 'guest-checkin') return 'Check-In'
   if (activePage === 'guest-feedback') return 'Feedback'
   return 'Guest Dashboard'
+}
+
+function getCheckInCode(invitation) {
+  return invitation.invitation_code || `GUEST-${invitation.guest_id}-EVENT-${invitation.event_id}`
+}
+
+function getCheckInPayload(invitation) {
+  return JSON.stringify({
+    type: 'popeyez-check-in',
+    invitationCode: getCheckInCode(invitation),
+    invitationId: invitation.invitation_id,
+    eventId: invitation.event_id,
+    guestId: invitation.guest_id,
+    guestName: invitation.guest_name,
+  })
+}
+
+function GuestQrCode({ invitation }) {
+  const [qrUrl, setQrUrl] = useState('')
+  const checkInCode = getCheckInCode(invitation)
+
+  useEffect(() => {
+    let ignore = false
+
+    QRCode.toDataURL(getCheckInPayload(invitation), {
+      errorCorrectionLevel: 'M',
+      margin: 2,
+      scale: 6,
+      color: {
+        dark: '#111827',
+        light: '#ffffff',
+      },
+    })
+      .then((url) => {
+        if (!ignore) setQrUrl(url)
+      })
+      .catch(() => {
+        if (!ignore) setQrUrl('')
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [invitation])
+
+  return (
+    <div className="guest-qr-card">
+      {qrUrl ? (
+        <img src={qrUrl} alt={`Check-in QR code for ${invitation.event_name}`} />
+      ) : (
+        <div className="guest-qr-fallback">QR unavailable</div>
+      )}
+      <span><b>QR code:</b> {checkInCode}</span>
+    </div>
+  )
 }
 
 function GuestWorkspace({ currentUser, activePage = 'guest-dashboard' }) {
@@ -468,9 +524,9 @@ function GuestWorkspace({ currentUser, activePage = 'guest-dashboard' }) {
               </p>
               <div className="guest-event-details">
                 <span><b>Name confirmation:</b> {invitation.guest_name}</span>
-                <span><b>QR placeholder:</b> {invitation.invitation_code || `GUEST-${invitation.guest_id}-EVENT-${invitation.event_id}`}</span>
                 <span><b>Checked in at:</b> {formatDateTime(invitation.checked_in_at)}</span>
               </div>
+              <GuestQrCode invitation={invitation} />
             </li>
           ))}
         </ul>

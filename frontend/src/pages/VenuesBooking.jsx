@@ -93,6 +93,8 @@ function AvailabilityCalendar({ availability, month, onMonthChange, onSelectDate
 }
 
 function VenuesBooking({ currentUser }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const currentYear = Number(today.slice(0, 4))
   const [events, setEvents] = useState([])
   const [venues, setVenues] = useState([])
   const [availability, setAvailability] = useState([])
@@ -227,7 +229,8 @@ function VenuesBooking({ currentUser }) {
             onChange={(date) => {
               setFilters((current) => ({ ...current, date }))
             }}
-            minYear={2026}
+            minDate={today}
+            minYear={currentYear}
             maxYear={2035}
           />
           {filters.date && (

@@ -1,10 +1,11 @@
 const express = require("express");
 const pool = require("../db");
+const { sendInvitationEmail } = require("../emailService");
 const { organizerOwnsEvent } = require("../ownership");
 
 const router = express.Router();
 const allowedStatuses = ["Draft", "Sent", "Opened", "Cancelled"];
-const allowedChannels = ["email", "sms", "platform"];
+const allowedChannels = ["email", "platform"];
 
 function isMissing(value) {
   return value === undefined || value === null || value === "";
@@ -56,20 +57,18 @@ router.post("/", async function (req, res) {
       return res.status(403).json({ error: "You can only invite guests to your own events" });
     }
 
+    const selectedChannel = channel || "email";
+
     const guestResult = await pool.query(
-      "SELECT email, phone FROM guests WHERE id = $1 AND event_id = $2",
+      "SELECT full_name, email FROM guests WHERE id = $1 AND event_id = $2",
       [guest_id, event_id]
     );
     if (guestResult.rows.length === 0) {
       return res.status(400).json({ error: "Guest does not belong to the selected event" });
     }
 
-    if (channel === "email" && !guestResult.rows[0].email) {
+    if (selectedChannel === "email" && !guestResult.rows[0].email) {
       return res.status(400).json({ error: "This guest needs an email address for an email invitation" });
-    }
-
-    if (channel === "sms" && !guestResult.rows[0].phone) {
-      return res.status(400).json({ error: "This guest needs a phone number for an SMS invitation" });
     }
 
     const duplicateResult = await pool.query(
@@ -83,6 +82,7 @@ router.post("/", async function (req, res) {
     }
 
     const client = await pool.connect();
+    let createdInvitation;
     try {
       await client.query("BEGIN");
       const result = await client.query(
@@ -94,11 +94,12 @@ router.post("/", async function (req, res) {
           guest_id,
           sent_by,
           invitation_code || null,
-          channel || null,
+          selectedChannel,
           status || null,
           sent_at || null,
         ]
       );
+      createdInvitation = result.rows[0];
 
       await client.query(
         `INSERT INTO rsvps (
@@ -112,13 +113,53 @@ router.post("/", async function (req, res) {
       );
 
       await client.query("COMMIT");
-      res.status(201).json(result.rows[0]);
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
     } finally {
       client.release();
     }
+
+    let emailDelivery = null;
+    const shouldSendEmail = selectedChannel === "email" && (status || "Draft") !== "Draft";
+    if (shouldSendEmail) {
+      try {
+        const emailResult = await pool.query(
+          `SELECT
+            invitations.id AS invitation_id,
+            invitations.invitation_code,
+            guests.full_name AS guest_name,
+            guests.email AS guest_email,
+            events.name AS event_name,
+            TO_CHAR(events.event_date, 'YYYY-MM-DD') AS event_date,
+            events.start_time,
+            events.dress_code,
+            events.agenda,
+            venues.name AS venue_name,
+            venues.city AS venue_city,
+            users.full_name AS organizer_name
+          FROM invitations
+          JOIN guests ON guests.id = invitations.guest_id
+          JOIN events ON events.id = invitations.event_id
+          LEFT JOIN venues ON venues.id = events.venue_id
+          LEFT JOIN users ON users.id = invitations.sent_by
+          WHERE invitations.id = $1`,
+          [createdInvitation.id]
+        );
+        emailDelivery = await sendInvitationEmail(emailResult.rows[0]);
+      } catch (emailError) {
+        console.error("Error sending invitation email:", emailError);
+        emailDelivery = {
+          status: "failed",
+          reason: emailError.message || "Email delivery failed",
+        };
+      }
+    }
+
+    res.status(201).json({
+      ...createdInvitation,
+      email_delivery: emailDelivery,
+    });
   } catch (error) {
     console.error("Error creating invitation:", error);
     res.status(500).json({ error: "Failed to create invitation" });
@@ -135,7 +176,12 @@ router.patch("/:id/status", async function (req, res) {
   try {
     const result = await pool.query(
       `UPDATE invitations
-      SET status = $1
+      SET
+        status = $1,
+        sent_at = CASE
+          WHEN $1 = 'Sent' AND sent_at IS NULL THEN CURRENT_TIMESTAMP
+          ELSE sent_at
+        END
       WHERE id = $2
         AND EXISTS (
           SELECT 1 FROM events
@@ -150,7 +196,45 @@ router.patch("/:id/status", async function (req, res) {
       return res.status(404).json({ error: "Invitation not found" });
     }
 
-    res.json(result.rows[0]);
+    let emailDelivery = null;
+    if (status === "Sent" && result.rows[0].channel === "email") {
+      try {
+        const emailResult = await pool.query(
+          `SELECT
+            invitations.id AS invitation_id,
+            invitations.invitation_code,
+            guests.full_name AS guest_name,
+            guests.email AS guest_email,
+            events.name AS event_name,
+            TO_CHAR(events.event_date, 'YYYY-MM-DD') AS event_date,
+            events.start_time,
+            events.dress_code,
+            events.agenda,
+            venues.name AS venue_name,
+            venues.city AS venue_city,
+            users.full_name AS organizer_name
+          FROM invitations
+          JOIN guests ON guests.id = invitations.guest_id
+          JOIN events ON events.id = invitations.event_id
+          LEFT JOIN venues ON venues.id = events.venue_id
+          LEFT JOIN users ON users.id = invitations.sent_by
+          WHERE invitations.id = $1`,
+          [result.rows[0].id]
+        );
+        emailDelivery = await sendInvitationEmail(emailResult.rows[0]);
+      } catch (emailError) {
+        console.error("Error sending invitation email:", emailError);
+        emailDelivery = {
+          status: "failed",
+          reason: emailError.message || "Email delivery failed",
+        };
+      }
+    }
+
+    res.json({
+      ...result.rows[0],
+      email_delivery: emailDelivery,
+    });
   } catch (error) {
     console.error("Error updating invitation status:", error);
     res.status(500).json({ error: "Failed to update invitation status" });

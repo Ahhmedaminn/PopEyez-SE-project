@@ -88,6 +88,7 @@ function GuestWorkspace({ currentUser, activePage = 'guest-dashboard' }) {
   const [message, setMessage] = useState('')
   const [isError, setIsError] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [rsvpConfirmation, setRsvpConfirmation] = useState(null)
 
   const loadData = useCallback(async function loadData() {
     const [invitationData, messageData] = await Promise.all([
@@ -203,6 +204,10 @@ function GuestWorkspace({ currentUser, activePage = 'guest-dashboard' }) {
       })
       await loadData()
       showSuccess('RSVP submitted successfully.')
+      setRsvpConfirmation({
+        eventName: invitation.event_name,
+        status: form.status,
+      })
     } catch (error) {
       showError(error.message || 'Could not update RSVP.')
     }
@@ -268,7 +273,11 @@ function GuestWorkspace({ currentUser, activePage = 'guest-dashboard' }) {
 
   const hasInvitations = invitations.length > 0
   const rsvpInvitations = invitations.filter((invitation) => invitation.invitation_status !== 'Draft')
-  const feedbackInvitations = invitations.filter((invitation) => invitation.invitation_status !== 'Cancelled')
+  const feedbackInvitations = invitations.filter((invitation) => {
+    if (invitation.invitation_status === 'Cancelled') return false
+    if (invitation.feedback_id) return true
+    return isPastEvent(invitation) && invitation.checkin_status === 'Arrived'
+  })
 
   function renderInvitationCards({ includeRsvp = false } = {}) {
     const items = includeRsvp ? rsvpInvitations : invitations
@@ -524,6 +533,10 @@ function GuestWorkspace({ currentUser, activePage = 'guest-dashboard' }) {
                       <span><b>Submitted:</b> {formatDateTime(invitation.feedback_submitted_at)}</span>
                       <p className="status-message">Feedback already submitted.</p>
                     </div>
+                  ) : !isPastEvent(invitation) ? (
+                    <p className="mvp-note">Feedback will be available after this event is finished.</p>
+                  ) : invitation.checkin_status !== 'Arrived' ? (
+                    <p className="mvp-note">Feedback is available after staff check you in at the event.</p>
                   ) : (
                     <form className="form guest-rsvp-form" onSubmit={(event) => submitFeedback(event, invitation)}>
                       {renderRatingSelect(invitation, 'overall_rating', 'Overall experience')}
@@ -590,6 +603,20 @@ function GuestWorkspace({ currentUser, activePage = 'guest-dashboard' }) {
       </div>
 
       {message && <p className={isError ? 'error-text' : 'status-message'}>{message}</p>}
+
+      {rsvpConfirmation && (
+        <div className="popup-backdrop" role="presentation">
+          <section className="popup-message" role="dialog" aria-modal="true" aria-labelledby="rsvp-confirmation-title">
+            <p className="eyebrow">RSVP confirmation</p>
+            <h2 id="rsvp-confirmation-title">Your RSVP was submitted</h2>
+            <p>
+              You responded <strong>{rsvpConfirmation.status}</strong> for{' '}
+              <strong>{rsvpConfirmation.eventName}</strong>.
+            </p>
+            <button type="button" onClick={() => setRsvpConfirmation(null)}>OK</button>
+          </section>
+        </div>
+      )}
 
       {loading ? (
         <section className="page-panel">

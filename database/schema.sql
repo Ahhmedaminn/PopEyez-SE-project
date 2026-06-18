@@ -217,7 +217,7 @@ CREATE TABLE invitations (
     guest_id INTEGER NOT NULL REFERENCES guests(id) ON DELETE CASCADE,
     sent_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     invitation_code VARCHAR(80) UNIQUE,
-    channel VARCHAR(30) CHECK (channel IS NULL OR channel IN ('email', 'sms', 'platform')),
+    channel VARCHAR(30) CHECK (channel IS NULL OR channel IN ('email', 'platform')),
     status VARCHAR(20) NOT NULL DEFAULT 'Draft' CHECK (status IN ('Draft', 'Sent', 'Opened', 'Cancelled')),
     sent_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

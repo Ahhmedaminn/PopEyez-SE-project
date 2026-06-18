@@ -168,6 +168,15 @@ router.post("/", async function (req, res) {
       return res.status(403).json({ error: "You can only add guests to your own events" });
     }
 
+    let linkedUserId = user_id || null;
+    if (!linkedUserId && email) {
+      const userResult = await pool.query(
+        "SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND role = 'guest' AND status = 'Active' LIMIT 1",
+        [String(email).trim()]
+      );
+      linkedUserId = userResult.rows[0]?.id || null;
+    }
+
     const result = await pool.query(
       `INSERT INTO guests (
         event_id, user_id, full_name, email, phone, dietary_preferences, special_requirements, notes
@@ -176,7 +185,7 @@ router.post("/", async function (req, res) {
       RETURNING *`,
       [
         event_id,
-        user_id || null,
+        linkedUserId,
         String(full_name).trim(),
         email ? String(email).trim() : null,
         phone ? String(phone).trim() : null,

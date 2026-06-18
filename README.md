@@ -94,6 +94,7 @@ Add this content:
 
 PORT=5050
 DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/popeyez_db
+APP_URL=http://localhost:5173
 
 Replace YOUR_PASSWORD with your PostgreSQL password.
 
@@ -101,8 +102,24 @@ Example:
 
 PORT=5050
 DATABASE_URL=postgresql://postgres:123456@localhost:5432/popeyez_db
+APP_URL=http://localhost:5173
 
 Do not commit the .env file.
+
+Optional email setup for guest invitations:
+
+If you want real invitation emails to be sent, also add SMTP settings to backend/.env:
+
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_STARTTLS=true
+SMTP_USER=your_email_username
+SMTP_PASS=your_email_password
+SMTP_FROM_EMAIL=no-reply@popeyez.local
+SMTP_FROM_NAME=PopEyez
+
+If SMTP_HOST is empty, the app still creates the in-app invitation and saves the email as a .eml file in backend/outbox for local demo testing.
 
 7. Run the Backend
 

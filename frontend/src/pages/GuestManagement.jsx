@@ -28,7 +28,6 @@ function GuestManagement({ currentUser }) {
   const [guestForm, setGuestForm] = useState(emptyGuestForm)
   const [invitationForm, setInvitationForm] = useState({
     guest_id: '',
-    channel: 'email',
     status: 'Sent',
   })
   const [message, setMessage] = useState('')
@@ -120,17 +119,28 @@ function GuestManagement({ currentUser }) {
     }
 
     try {
-      await apiPost('/invitations', {
+      const invitation = await apiPost('/invitations', {
         event_id: guest.event_id,
         guest_id: guest.id,
         sent_by: currentUser.id,
-        channel: invitationForm.channel,
+        channel: 'email',
         status: invitationForm.status,
         sent_at: invitationForm.status === 'Draft' ? null : new Date().toISOString(),
       })
-      setInvitationForm({ guest_id: '', channel: 'email', status: 'Sent' })
-      setMessage('Digital invitation created successfully.')
-      setIsError(false)
+      setInvitationForm({ guest_id: '', status: 'Sent' })
+      if (invitation.email_delivery?.status === 'sent') {
+        setMessage('Invitation created in the guest workspace and email sent to the guest.')
+        setIsError(false)
+      } else if (invitation.email_delivery?.status === 'saved') {
+        setMessage('Invitation created in the guest workspace and email saved to backend/outbox because SMTP is not configured.')
+        setIsError(false)
+      } else if (invitation.email_delivery?.status === 'failed') {
+        setMessage(`Invitation created in the workspace, but email failed: ${invitation.email_delivery.reason}`)
+        setIsError(true)
+      } else {
+        setMessage('Digital invitation created successfully.')
+        setIsError(false)
+      }
       await loadGuests()
     } catch (error) {
       setMessage(error.message || 'Could not create invitation.')
@@ -141,12 +151,23 @@ function GuestManagement({ currentUser }) {
   async function updateInvitationStatus(id, status) {
     setMessage('')
     try {
-      await apiPatch(`/invitations/${id}/status`, {
+      const invitation = await apiPatch(`/invitations/${id}/status`, {
         status,
         organizer_id: currentUser.id,
       })
-      setMessage('Invitation status updated.')
-      setIsError(false)
+      if (invitation.email_delivery?.status === 'sent') {
+        setMessage('Invitation status updated and email sent to the guest.')
+        setIsError(false)
+      } else if (invitation.email_delivery?.status === 'saved') {
+        setMessage('Invitation status updated and email saved to backend/outbox because SMTP is not configured.')
+        setIsError(false)
+      } else if (invitation.email_delivery?.status === 'failed') {
+        setMessage(`Invitation status updated, but email failed: ${invitation.email_delivery.reason}`)
+        setIsError(true)
+      } else {
+        setMessage('Invitation status updated.')
+        setIsError(false)
+      }
       await loadGuests()
     } catch (error) {
       setMessage(error.message || 'Could not update invitation status.')
@@ -245,11 +266,7 @@ function GuestManagement({ currentUser }) {
               </option>
             ))}
           </select>
-          <select value={invitationForm.channel} onChange={(event) => setInvitationForm({ ...invitationForm, channel: event.target.value })}>
-            <option value="email">Email</option>
-            <option value="sms">SMS</option>
-            <option value="platform">Platform</option>
-          </select>
+          <p className="form-note">Sent invitations are delivered by email and also appear in the guest workspace.</p>
           <select value={invitationForm.status} onChange={(event) => setInvitationForm({ ...invitationForm, status: event.target.value })}>
             <option value="Draft">Save as Draft</option>
             <option value="Sent">Mark as Sent</option>

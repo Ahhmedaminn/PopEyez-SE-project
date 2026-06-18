@@ -297,7 +297,7 @@ router.patch("/messages/:id/status", async function (req, res) {
       `UPDATE messages
       SET status = 'Seen',
           seen_at = CURRENT_TIMESTAMP
-      WHERE id = $1
+      WHERE messages.id = $1
         AND EXISTS (
           SELECT 1
           FROM guests
@@ -364,16 +364,36 @@ router.post("/feedback", async function (req, res) {
     }
 
     const ownershipResult = await pool.query(
-      `SELECT 1
+      `SELECT
+        events.event_date,
+        COALESCE(checkins.status, 'Not Arrived') AS checkin_status
       FROM guests
-      WHERE id = $1
-        AND event_id = $2
-        AND user_id = $3`,
+      JOIN events ON events.id = guests.event_id
+      LEFT JOIN checkins
+        ON checkins.event_id = guests.event_id
+        AND checkins.guest_id = guests.id
+      WHERE guests.id = $1
+        AND guests.event_id = $2
+        AND guests.user_id = $3`,
       [guest_id, event_id, user_id]
     );
 
     if (ownershipResult.rows.length === 0) {
       return res.status(404).json({ error: "Feedback event not found for this guest" });
+    }
+
+    const feedbackEvent = ownershipResult.rows[0];
+    const dateResult = await pool.query(
+      "SELECT $1::date < CURRENT_DATE AS can_submit",
+      [feedbackEvent.event_date]
+    );
+
+    if (!dateResult.rows[0].can_submit) {
+      return res.status(400).json({ error: "Feedback is available only after the event is finished" });
+    }
+
+    if (feedbackEvent.checkin_status !== "Arrived") {
+      return res.status(400).json({ error: "Feedback is available only after you have attended and checked in" });
     }
 
     const duplicateResult = await pool.query(

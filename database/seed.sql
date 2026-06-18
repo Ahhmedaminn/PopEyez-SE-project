@@ -160,20 +160,22 @@ INSERT INTO guests (id, event_id, user_id, full_name, email, phone, dietary_pref
 (8, 8, 17, 'Bassel Karim', 'bassel.guest@popeyez.demo', '+20 101 777 8888', 'Halal', NULL, 'Dinner guest who has opened invitation but not checked in yet.', '2026-06-12 10:00:00'),
 (9, 8, NULL, 'Dalia Nour', 'dalia.nour@example.com', '+20 101 999 1111', 'Vegan', 'Near stage if possible.', 'Dinner guest with special seating note.', '2026-06-12 10:05:00'),
 (10, 8, NULL, 'Omar El Daly', 'omar.daly@example.com', '+20 101 999 2222', NULL, NULL, 'Dinner guest who declined RSVP.', '2026-06-12 10:10:00'),
-(11, 7, NULL, 'Nadine Shaker', 'nadine.shaker@example.com', '+20 101 999 3333', 'No dairy', NULL, 'Second organizer guest for isolation testing.', '2026-06-13 10:00:00');
+(11, 7, NULL, 'Nadine Shaker', 'nadine.shaker@example.com', '+20 101 999 3333', 'No dairy', NULL, 'Second organizer guest for isolation testing.', '2026-06-13 10:00:00'),
+(12, 4, 17, 'Bassel Karim', 'bassel.guest@popeyez.demo', '+20 101 777 8888', 'Halal', NULL, 'Completed preview attendee with a pending feedback request.', '2026-06-10 10:10:00');
 
 INSERT INTO invitations (id, event_id, guest_id, sent_by, invitation_code, channel, status, sent_at, created_at) OVERRIDING SYSTEM VALUE VALUES
 (1, 1, 1, 1, 'INV-LAUNCH-001', 'email', 'Opened', '2026-05-22 09:00:00', '2026-05-22 09:00:00'),
 (2, 1, 2, 1, 'INV-LAUNCH-002', 'email', 'Opened', '2026-05-22 09:05:00', '2026-05-22 09:05:00'),
-(3, 1, 3, 1, 'INV-LAUNCH-003', 'sms', 'Sent', '2026-05-22 09:10:00', '2026-05-22 09:10:00'),
+(3, 1, 3, 1, 'INV-LAUNCH-003', 'email', 'Sent', '2026-05-22 09:10:00', '2026-05-22 09:10:00'),
 (4, 2, 4, 1, 'INV-MARKET-001', 'platform', 'Sent', '2026-05-23 09:00:00', '2026-05-23 09:00:00'),
 (5, 3, 5, 1, 'INV-DRILL-001', 'email', 'Draft', NULL, '2026-06-01 09:00:00'),
-(6, 3, 6, 1, 'INV-DRILL-002', 'sms', 'Cancelled', '2026-06-01 09:05:00', '2026-06-01 09:05:00'),
+(6, 3, 6, 1, 'INV-DRILL-002', 'email', 'Cancelled', '2026-06-01 09:05:00', '2026-06-01 09:05:00'),
 (7, 4, 7, 1, 'INV-PAST-001', 'email', 'Opened', '2026-06-09 09:00:00', '2026-06-09 09:00:00'),
 (8, 8, 8, 1, 'INV-DINNER-001', 'email', 'Opened', '2026-06-12 09:00:00', '2026-06-12 09:00:00'),
-(9, 8, 9, 1, 'INV-DINNER-002', 'sms', 'Sent', '2026-06-12 09:05:00', '2026-06-12 09:05:00'),
+(9, 8, 9, 1, 'INV-DINNER-002', 'email', 'Sent', '2026-06-12 09:05:00', '2026-06-12 09:05:00'),
 (10, 8, 10, 1, 'INV-DINNER-003', 'platform', 'Opened', '2026-06-12 09:10:00', '2026-06-12 09:10:00'),
-(11, 7, 11, 11, 'INV-SALON-001', 'email', 'Opened', '2026-06-13 09:00:00', '2026-06-13 09:00:00');
+(11, 7, 11, 11, 'INV-SALON-001', 'email', 'Opened', '2026-06-13 09:00:00', '2026-06-13 09:00:00'),
+(12, 4, 12, 1, 'INV-PAST-002', 'email', 'Opened', '2026-06-09 09:10:00', '2026-06-09 09:10:00');
 
 INSERT INTO rsvps (id, invitation_id, event_id, guest_id, status, dietary_preferences, special_requirements, responded_at, created_at) OVERRIDING SYSTEM VALUE VALUES
 (1, 1, 1, 1, 'Attending', 'No seafood', NULL, '2026-05-22 12:00:00', '2026-05-22 12:00:00'),
@@ -186,7 +188,8 @@ INSERT INTO rsvps (id, invitation_id, event_id, guest_id, status, dietary_prefer
 (8, 8, 8, 8, 'Attending', 'Halal', NULL, '2026-06-12 12:00:00', '2026-06-12 12:00:00'),
 (9, 9, 8, 9, 'Maybe', 'Vegan', 'Near stage if possible.', '2026-06-12 12:10:00', '2026-06-12 12:10:00'),
 (10, 10, 8, 10, 'Not Attending', NULL, 'Travel conflict.', '2026-06-12 12:20:00', '2026-06-12 12:20:00'),
-(11, 11, 7, 11, 'Attending', 'No dairy', NULL, '2026-06-13 12:00:00', '2026-06-13 12:00:00');
+(11, 11, 7, 11, 'Attending', 'No dairy', NULL, '2026-06-13 12:00:00', '2026-06-13 12:00:00'),
+(12, 12, 4, 12, 'Attending', 'Halal', NULL, '2026-06-09 12:10:00', '2026-06-09 12:10:00');
 
 INSERT INTO messages (id, event_id, sender_id, recipient_user_id, guest_id, subject, body, message_type, status, seen_at, created_at) OVERRIDING SYSTEM VALUE VALUES
 (1, 1, 1, 6, 1, 'Arrival details', 'Doors open at 6 PM. Please use the rooftop entrance.', 'day-of', 'Seen', '2026-06-20 16:10:00', '2026-06-20 15:45:00'),
@@ -198,7 +201,8 @@ INSERT INTO messages (id, event_id, sender_id, recipient_user_id, guest_id, subj
 (7, 8, 1, 17, 8, 'Dinner arrival', 'Dinner starts at 7 PM. Valet is available at the courtyard entrance.', 'day-of', 'Seen', '2026-07-08 16:00:00', '2026-07-08 15:30:00'),
 (8, 8, 1, NULL, 9, 'Dinner reminder', 'Please confirm your final RSVP before tomorrow.', 'follow-up', 'Sent', NULL, '2026-07-06 10:00:00'),
 (9, 8, 1, NULL, 10, 'Thank you', 'Thank you for letting us know you cannot attend.', 'notification', 'Received', NULL, '2026-06-12 13:00:00'),
-(10, 7, 11, NULL, 11, 'Salon arrival', 'Please arrive through the freight elevator lobby for check-in.', 'day-of', 'Received', NULL, '2026-07-05 14:00:00');
+(10, 7, 11, NULL, 11, 'Salon arrival', 'Please arrive through the freight elevator lobby for check-in.', 'day-of', 'Received', NULL, '2026-07-05 14:00:00'),
+(11, 4, 1, 17, 12, 'Feedback request', 'Thanks for attending Past Feedback Review. Please submit your post-event feedback in the guest workspace.', 'notification', 'Received', NULL, '2026-06-11 09:00:00');
 
 INSERT INTO checkins (id, event_id, guest_id, checked_in_by, status, checkin_method, checked_in_at, created_at) OVERRIDING SYSTEM VALUE VALUES
 (1, 1, 1, 3, 'Arrived', 'qr_code', '2026-06-20 18:05:00', '2026-06-20 18:05:00'),
@@ -211,17 +215,11 @@ INSERT INTO checkins (id, event_id, guest_id, checked_in_by, status, checkin_met
 (8, 8, 8, NULL, 'Not Arrived', NULL, NULL, '2026-07-08 18:00:00'),
 (9, 8, 9, NULL, 'Not Arrived', NULL, NULL, '2026-07-08 18:05:00'),
 (10, 8, 10, NULL, 'Not Arrived', NULL, NULL, '2026-07-08 18:10:00'),
-(11, 7, 11, 18, 'Arrived', 'qr_code', '2026-07-05 17:02:00', '2026-07-05 17:02:00');
+(11, 7, 11, 18, 'Arrived', 'qr_code', '2026-07-05 17:02:00', '2026-07-05 17:02:00'),
+(12, 4, 12, 3, 'Arrived', 'qr_code', '2026-06-10 17:08:00', '2026-06-10 17:08:00');
 
 INSERT INTO feedback (id, event_id, guest_id, overall_rating, food_rating, venue_rating, organization_rating, sentiment, comments, submitted_at, created_at) OVERRIDING SYSTEM VALUE VALUES
-(1, 1, 1, 5, 4, 5, 5, 'Positive', 'Beautiful venue and smooth check-in. Food was very good.', '2026-06-21 11:00:00', '2026-06-21 11:00:00'),
-(2, 1, 2, 4, 5, 4, 4, 'Positive', 'Great atmosphere and helpful staff. More signage near the entrance would help.', '2026-06-21 11:30:00', '2026-06-21 11:30:00'),
-(3, 1, 3, 3, NULL, 4, 3, 'Neutral', 'Could not attend the full event but the invitation flow was clear.', '2026-06-21 12:00:00', '2026-06-21 12:00:00'),
-(4, 4, 7, 2, 2, 3, 2, 'Negative', 'The preview was useful, but signage was confusing and check-in was slow.', '2026-06-11 10:00:00', '2026-06-11 10:00:00'),
-(5, 3, 5, 4, NULL, 4, 5, 'Positive', 'Staff drill felt organized and the check-in flow was clear.', '2026-06-18 17:00:00', '2026-06-18 17:00:00'),
-(6, 8, 8, 5, 5, 5, 4, 'Positive', 'Dinner venue was lovely and communication was clear.', '2026-07-09 10:00:00', '2026-07-09 10:00:00'),
-(7, 8, 9, 3, 4, 3, 3, 'Neutral', 'Food was good, but seating signs could be clearer.', '2026-07-09 10:10:00', '2026-07-09 10:10:00'),
-(8, 7, 11, 5, NULL, 5, 5, 'Positive', 'Professional salon setup and easy arrival instructions.', '2026-07-06 10:00:00', '2026-07-06 10:00:00');
+(1, 4, 7, 2, 2, 3, 2, 'Negative', 'The preview was useful, but signage was confusing and check-in was slow.', '2026-06-11 10:00:00', '2026-06-11 10:00:00');
 
 SELECT setval(pg_get_serial_sequence('users', 'id'), COALESCE((SELECT MAX(id) FROM users), 1));
 SELECT setval(pg_get_serial_sequence('venues', 'id'), COALESCE((SELECT MAX(id) FROM venues), 1));
